@@ -50,14 +50,14 @@ int main(void)
     NVIC_SetVector(DMA_IRQn, (uint32_t)DMA_IRQHandler);
     NVIC_EnableIRQ(DMA_IRQn);
 
-    // Have to be in this order, I don't know why
+    
     DMA_Cmd(LPC_GPDMACH0, ENABLE); // enable channel
     DMA_ITConfig (LPC_GPDMACH0, DMA_ITC, ENABLE);
 
     
     printf("src text: %s", src);
 
-    while (!DMATCCount);  /* Wait untypedil DMA is done */
+    while (!DMATCCount);  /* Wait until DMA is done */
 
 
     printf("dst text: %s", dst);
@@ -66,8 +66,8 @@ int main(void)
         printf("error!");
     else
         printf("correct!");
-	
-	  while (1);
+
+    while (1);
 }
 
 void DMA_IRQHandler (void)
