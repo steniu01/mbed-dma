@@ -103,7 +103,7 @@ void DMA_StructInit(DMA_InitTypeDef* DMA_InitStruct)
     
     DMA_InitStruct->DMA_SrcPeripheral=0;
     DMA_InitStruct->DMA_DestPeripheral=0;
-    DMA_InitStruct->DMA_TransferType=0;       
+    DMA_InitStruct->DMA_TransferType=M2M;       
 }
 
 
@@ -215,16 +215,10 @@ void DMA_ClearITPendingBit(LPC_GPDMACH_TypeDef* DMAy_Channelx, uint32_t DMA_IT)
     
 }
 
-/*check which channels are free*/
-uint32_t DMA_EnabledChannels(void){
-    
-    return (LPC_GPDMA->DMACEnbldChns & 0xff);
-    
-}
+/*check whether channel is active*/
 
-bool DMA_ChannelActive (LPC_GPDMACH_TypeDef* DMAy_Channelx){
-    if( DMAy_Channelx->DMACCConfig && 1<<DMA_CCxConfig_A_Pos) 
-      return 1;
-    else
-      return 0;   
+bool DMA_ChannelActive (int channel){
+    if (channel > (channel_num-1) || channel < 0)
+		   channel = 0; 
+		return (LPC_GPDMA->DMACEnbldChns && (1<<channel));
 }
