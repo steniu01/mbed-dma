@@ -1,4 +1,5 @@
-
+#ifndef LPC1768_DMA_H
+#define LPC1768_DMA_H
 
 #include "mbed.h"
 /** 
@@ -29,14 +30,24 @@
 #define DMA_IE                        ((uint32_t)0x00004000)
 #define DMA_ITC                       ((uint32_t)0x00008000) 
 
+#define channel_num 8
+
+typedef enum
+{
+    M2M = 0x00,
+    M2P = 0x01,
+    P2M = 0x02,
+    P2P = 0x03
+} TransferType;
+
+
 typedef struct
 {
     uint32_t DestAddr;
     uint32_t SrcAddr;
     uint32_t next;
     uint32_t control;
-    
-}DMA_LLI;
+} DMA_LLI;
 
 typedef struct
 {
@@ -48,16 +59,15 @@ typedef struct
     uint32_t DMA_DestBurst; /*!< Specifies the destination burst size   */
     uint32_t DMA_SrcWidth; /*!< Specifies the source transfer width   */
     uint32_t DMA_DestWidth; /*!< Specifies the destination transfer width   */
-    uint32_t DMA_SrcInc;  /*!< Specifies whether the source is incremented or not */
-    uint32_t DMA_DestInc; /*!< Specifies whether the destination is incremented or not */
-    uint32_t DMA_TermInt; /*!< Specifies whether the terminal count interrupt enabled or not */
+    bool DMA_SrcInc;  /*!< Specifies whether the source is incremented or not */
+    bool DMA_DestInc; /*!< Specifies whether the destination is incremented or not */
+    bool DMA_TermInt; /*!< Specifies whether the terminal count interrupt enabled or not */
     
     /*!< Specifies the features set by channel config register */
     uint32_t  DMA_SrcPeripheral;
     uint32_t  DMA_DestPeripheral;
-    uint32_t  DMA_TransferType;       
-
-}DMA_InitTypeDef;
+    TransferType  DMA_TransferType;       
+} DMA_InitTypeDef;
 
 
 
@@ -70,5 +80,6 @@ void DMA_StructInit(DMA_InitTypeDef* DMA_InitStruct);
 void DMA_Cmd(LPC_GPDMACH_TypeDef*  DMAy_Channelx, FunctionalState NewState);
 void DMA_ITConfig (LPC_GPDMACH_TypeDef* DMAy_Channelx, uint32_t DMA_IT, FunctionalState NewState);
 void DMA_ClearITPendingBit(LPC_GPDMACH_TypeDef* DMAy_Channelx, uint32_t DMA_IT);
-uint32_t DMA_EnabledChannels(void);
-bool DMA_ChannelActive (LPC_GPDMACH_TypeDef* DMAy_Channelx);
+bool DMA_ChannelActive (int channel);
+
+#endif
