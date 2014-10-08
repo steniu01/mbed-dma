@@ -9,23 +9,28 @@ Select which ever free or which ever not declared?
 How to put comments?
 
 
-Done 1. make init struct generic
-2. make trigger type generic
-3. support pass method callback
-4. read_adc
+Done 1. make init struct generic -- Done
+2. make trigger type generic .-- Done
+3. support pass method callback -- no solution 
+4. read_adc -- Done
 5. PC app to received data from uart
+6. start ADC transfer rate
+7. trigger on Timer 
+8. Add assert --- Done
+9. Destructor - Done 
+10. add space/ comments  
 */
 
 // disassembler memcpy
 #include "mbed.h"
 
 
-
+#define test_attach 0
 #define test_m2m 0
 #define test_m2p 0
 #define test_p2m 0
-#define test_p2p 0
-#define test_all 1
+#define test_p2p 1
+#define test_all 0
 #define test_adc 0
 
 LocalFileSystem local("local");
@@ -52,14 +57,50 @@ void IRQ_err (void);
 void ADC_init();
 void old_ADC_init();
 void burst_ADC_init();
+uint32_t ADC_read(uint8_t channel);
+
 
 volatile bool m2p_finishFlag = 0; 
 
+class mynumber {
+    public:
+		int num;
+		mynumber(){
+		    num = 0;
+		}
+		void print_mynumber(void){
+		    pc.printf("my number is %d", num);
+		}
+	
+};
+
+mynumber mynumber1;
+
+void test_mynumber (){
+	 static_cast<mynumber*>(&mynumber1)->print_mynumber();
+}
+
+
+template<typename T>
+void led_test_call (T *object, void (T::*member)(void)){
+    void (T::*m)(void);
+   	T* o = static_cast<T*>(object);
+	  memcpy((char*)&m, (char*)&member, sizeof(m));
+  	(o->*m)();
+}
+
+mynumber mynumber2;
+
+void irq_handler(void)
+{
+	led_test_call<mynumber> (&mynumber2, &mynumber::print_mynumber);
+}
+
+
+
 int main(void)
 {
-
-	
-	 char src[] =   "Hello world Copy the logical and implementation_tsmc28hpm directories in to the Skadi home directo \r\n" \
+char src[] =   "Hello world Copy the logical and implementation_tsmc28hpm directories in to the Skadi home directo \r\n" \
 									"Thank you for the demonstration. I understand now. I have come to terms with the fact that I misunderstood how \r\n" \
 									"memory is laid out. I thought that each individual address was capable of storing an entire word, not just a byte \r\n" \
 									"(for instance address 0x12345678 could hold a value of 0xffffffff and then 0x12345679 could hold a completely  \r\n" \
@@ -71,24 +112,60 @@ int main(void)
 									"(for instance address 0x12345678 could hold a value of 0xffffffff and then 0x12345679 could hold a completely  \r\n" \
 									"different value 0x00000000). Now I realize that 0x12345678 holds only one byte of a word and the next word \r\n" \
 									"The logic for your memcpy is correct and your interviewer didn't ask you to change it or add a restriction.  \r\n" \
-									"Copying 4 bytes at a time is faster, but becomes a problem if your size is not a multiple of 4. Hence your  \r\n" \
-									"interviewer told you to use two loops: the first copies 4 bytes at a time, and the 2nd loop one byte at a time \r\n" \
-									"So the bulk of the copy is done with the fast 4-byte copy, but you're not restricted to size being a multiple of 4  \r\n" \
-									"There can be problems even if the total data to copy is a multiple of 4 bytes. The first pointer might point to a  \r\n" \
-									"The interviewer was testing your knowledge of computer architecture, and wanted you to optimize your  \r\n" \
-									"algorithm. Memory operates on words rather than bytes. In a 32-bit system, a word is typically 4 bytes, it  \r\n" \
-									"akes the same amount of time to read/write 1 byte as it does to read/write 1 word. The second loop is to  \r\n" \
+									"different value 0x00000000). Now I realize that 0x12345678 holds only one byte of a word and the next word\r\n" \
+									"The logic for your memcpy is correct and your interviewer didn't ask you to change it or add a restriction.\r\n"\
+									"Hello world Copy the logical and implementation_tsmc28hpm directories in to the Skadi home directo \r\n" \
+									"Thank you for the demonstration. I understand now. I have come to terms with the fact that I misunderstood how \r\n" \
+									"memory is laid out. I thought that each individual address was capable of storing an entire word, not just a byte \r\n" \
+									"(for instance address 0x12345678 could hold a value of 0xffffffff and then 0x12345679 could hold a completely  \r\n" \
+									"different value 0x00000000). Now I realize that 0x12345678 holds only one byte of a word and the next word \r\n" \
+									"The logic for your memcpy is correct and your interviewer didn't ask you to change it or add a restriction.  \r\n" \
+									"Thank you for the demonstration. I understand now. I have come to terms with the fact that I misunderstood how \r\n" \
+									"memory is laid out. I thought that each individual address was capable of storing an entire word, not just a byte \r\n" \
+									"(for instance address 0x12345678 could hold a value of 0xffffffff and then 0x12345679 could hold a completely  \r\n" \
+									"different value 0x00000000). Now I realize that 0x12345678 holds only one byte of a word and the next word \r\n" \
+									"The logic for your memcpy is correct and your interviewer didn't ask you to change it or add a restriction.  \r\n" \
+									"memory is laid out. I thought that each individual address was capable of storing an entire word, not just a byte \r\n" \
+									"(for instance address 0x12345678 could hold a value of 0xffffffff and then 0x12345679 could hold a completely  \r\n" \
+									"different value 0x00000000). Now I realize that 0x12345678 holds only one byte of a word and the next word \r\n" \
+									"The logic for your memcpy is correct and your interviewer didn't ask you to change it or add a restriction.  \r\n" \
+									"Thank you for the demonstration. I understand now. I have come to terms with the fact that I misunderstood how \r\n" \
+									"Thank you for the demonstration. I understand now. I have come to terms with the fact that I misunderstood how \r\n" \
+									"memory is laid out. I thought that each individual address was capable of storing an entire word, not just a byte \r\n" \
+									"algorithm. Memory operates on words rather than bytes. In a 32-bit system, a word is typically 4 bytes, it\r\n"\
+									"akes the same amount of time to read/write 1 byte as it does to read/write 1 word. The second loop is to\r\n"\
 									"Hello world Copy the logical and implementation_tsmc28hpm directories in to the Skadi home directory\r\n" ;
 						
-									
-	
 
+
+	
+#if test_attach
+
+		
+    pc.printf("start to test mehtod attach function now!\r\n");
+		char src2[] = "this  is for test_attach test";
+    wait(2);				
+    size_t size = sizeof (src2);
+    char *dst1  = (char *) malloc(size);
+    memset (dst1, '\0', size);
+	
+    mynumber1.num = 3; 	
+    DMA dma1 (-1) ; // choose whichever free channel
+    dma1.source (src2,1, 8); // set source as incremental. Not need to set the transfer width as MBED dma will do it for you.
+    dma1.destination (dst1, 1, 8);
+    dma1.attach_TC(test_mynumber) ;
+	
+	  dma1.start(size);
+    dma1.wait();
+    pc.printf("finish");
+	
+#endif
 	
 #if test_m2m
     /* test the DMA M2M, copy data from src to dest, and then print out the dest mem data */
 
     pc.printf("start to test DMA M2M test now!\r\n");
-    wait(2);				
+    wait(1);				
     size_t size = sizeof (src);
     char *dst1  = (char *) malloc(size);
 		char *dst2  = (char *) malloc(size);
@@ -101,20 +178,20 @@ int main(void)
 		printf("The time CPU took was %f seconds\r\n", t.read());
 		t.reset();
 
+		
     DMA dma1 (-1) ; // choose whichever free channel
     dma1.source (src,1, 8); // set source as incremental. Not need to set the transfer width as MBED dma will do it for you.
     dma1.destination (dst2, 1, 8);
     dma1.attach_TC(led_switchon_m2m) ;
 		dma1.attach_Err (IRQ_err);
-		dma1.init();
-		
 		t.start();
 	  dma1.start(size);
     dma1.wait();
-		
-		
+		t.stop();
 	  pc.printf("The time DMA took was %f seconds\r\n", t.read());
+		wait(1);
     pc.printf("dst text: %s \r\n", dst2);
+		t.reset();
     if (strcmp (dst2, src) != 0)
         pc.printf("error! \r\n");
     else
@@ -126,44 +203,50 @@ int main(void)
 #if test_m2p
     /*Test m2P, send the memory data to UART;*/ 
     pc.printf ("start to test m2p now\r\n");
-		pc.printf ("It will demonstrate CPU and DMA could work together\r\n");
-
+		
 		t.start();	
 	  pc.printf(src);
   	t.stop();
- 		wait(2);
+  	wait(1);
 		printf("The time CPU took was %f seconds\r\n", t.read());
-    wait(2);
+    wait(1);
 		t.reset();
 		
-		m2p_finishFlag = 0;
+		
+
     LPC_UART0->FCR  |=  1<<3 ; //Enable UART DMA mode
 		LPC_UART0->LCR &= ~(1<<3); // No parity bit genrated 
 		
-    DMA dma2(-1);
+    DMA dma2(2);
     dma2.destination(&(LPC_UART0->THR),0, sizeof(char)*8);
     dma2.source(src,1, sizeof(char)*8);
     dma2.TriggerDestination(_UART0_TX);
     dma2.attach_TC(led_switchon_m2p);//  m2p_finishFlag will be set when FINISH interrupt generated
 		dma2.attach_Err (IRQ_err);
-		dma2.init(); // must call init after have setting the DMA
+	
 		t.start();
     dma2.start(sizeof(src));
 		dma2.wait();
     t.stop();
 		printf("The time DMA took was %f seconds\r\n", t.read());
+		wait(2);
 		
 		
+		pc.printf ("Now demonstrate CPU and DMA could work together\r\n");
+		wait(1);
+	  m2p_finishFlag = 0;
+		dma2.start(sizeof(src));
 		// Demonstrate CPU and DMA could work together, led2 keep blinking while DMA is transferring data 
-		while (! m2p_finishFlag){
+		while (!m2p_finishFlag){
 		    myled2 = !myled2;
 			  wait (0.2);
 		}
-		
+
+
 		// Demonstrate Err interrupt callback also works
 		// Dedicately read data from the unallocated memory range to generate error 
-		wait (2);
-		pc.printf ("now demonstrate error interrupt callback also works\r\n");
+		wait (1);
+		pc.printf ("Now demonstrate error interrupt callback also works\r\n");
 		wait(2);
 		dma2.attach_Err (IRQ_err);
 	  dma2.start((sizeof(src)+4)); 
@@ -177,8 +260,9 @@ int main(void)
     wait(2);
     volatile unsigned int data = 0;
 		unsigned int data2 = 0;
-		volatile int *dst3  = (int *) malloc(32);
+		volatile int *dst3  = (int *) malloc(4);
     old_ADC_init();
+
 		NVIC_DisableIRQ(ADC_IRQn); // If ADC DMA is used, the ADC interrupt must be disabled 	
     
 	
@@ -191,37 +275,117 @@ int main(void)
 		
 		while (1)
 		{
-        LPC_ADC->ADCR |= 1 << 24;
+      //  LPC_ADC->ADCR |= 1 << 24;// start the conversion now
 		    dma3.start(1);
-			  dma3.wait();
 			  data= float(dst3[0]>>4 & 0xfff); // Only bit4-bit16 contains the valid ADC data
-			  pc.printf("The ADC data is: %d\r\n", data);
+			  data2 = ADC_read(4); // read ADC channel 4
+			  pc.printf("The ADC data of DMA is: %d\r\n", data);
+			  pc.printf("The ADC data of CPU is: %d\r\n", data2);
 	   	  wait (1);
 		}
 			
 
     pc.printf("\nFinish!\r\n");
 #endif
+	
+#if 0
+    
+    pc.printf("start to test DMA P2M now!\r\n");
+    wait(2);
+    volatile unsigned int data = 0;
+    unsigned int raw_data = 0;
+		unsigned int data2 = 0;
+		volatile int *dst3  = (int *) malloc(4);
+    old_ADC_init();
+
+		NVIC_DisableIRQ(ADC_IRQn); // If ADC DMA is used, the ADC interrupt must be disabled 	
+    
+	
+    DMA dma3(3);
+    dma3.destination(dst3, 0, 32); // Some sample codes show it should be half-word as only low 16bit contains the data. 
+															   	//	But I think it should be 32 as the reigster is 32-bit width 
+    dma3.source(&(LPC_ADC->ADDR4),0, 32);
+    dma3.TriggerSource(_ADC);
+    dma3.attach_TC(led_switchon_p2m);
+	
+		
+		while (1)
+		{
+       // LPC_ADC->ADCR |= 1 << 24;// start the conversion now
+		    dma3.start(1);
+			  data= float(dst3[0]>>4 & 0xfff); // Only bit4-bit16 contains the valid ADC data
+			  raw_data= (unsigned int )dst3[0] &0x7fffffff;
+			  pc.printf("The ADC data of raw data is: %d\r\n", raw_data);
+			  pc.printf("The ADC data of DMA is: %d\r\n", data);
+			
+	   	  wait (1);
+		}
+			
+
+    pc.printf("\nFinish!\r\n");
+#endif		
+		
 		
 #if test_p2p
     
-    pc.printf("start to test DMA P2P now!\r\n");
+    wait(2);
+    volatile unsigned int data = 0;
+		unsigned int data2 = 0;
+		volatile unsigned int  raw_data = 0; 
+		volatile int *dst3  = (int *) malloc(4);
+    old_ADC_init();
+		NVIC_DisableIRQ(ADC_IRQn); // If ADC DMA is used, the ADC interrupt must be disabled 	
+    
+		LPC_UART0->FCR  |=  1<<3 ; //Enable UART DMA mode
+		LPC_UART0->LCR &= ~(1<<3); // No parity bit genrated 
+	
+    DMA dma4(4);
+		dma4.source(&(LPC_ADC->ADDR4),0, 32);
+    dma4.destination(&(LPC_UART0->THR),0,8); 
+   // dma4.destination(dst3, 0, 32);		
+    dma4.TriggerSource(_ADC);
+		dma4.TriggerDestination(_UART0_TX);
+    dma4.attach_TC(led_switchon_p2p);
+
+		while (1)
+		{
+        LPC_ADC->ADCR |= 1 << 24;// start the conversion now
+		    dma4.start(1);
+	
+	/*		
+  			data= float(dst3[0]>>4 & 0xfff); // Only bit4-bit16 contains the valid ADC data
+			  raw_data= (unsigned int )dst3[0] &0x7fffffff;
+			  pc.printf("The ADC data of raw data is: %d\r\n", raw_data);
+			  pc.printf("The ADC data of DMA is: %d\r\n", data);
+		*/	
+	   	  wait (3);
+		}
+			
+
+    pc.printf("\nFinish!\r\n");
+#endif
+		
+		
+		
+#if 0
+    
+   // pc.printf("start to test DMA P2P now!\r\n");
     wait(2);
     ADC_init();
 		NVIC_DisableIRQ(ADC_IRQn); // If ADC DMA is used, the ADC interrupt must be disabled 	
     
     DMA dma4(4);
-    dma4.destination(&(LPC_UART0->THR),32,0);  													
+    dma4.destination(&(LPC_UART0->THR),0,8);  													
 																            
-    dma4.source(&(LPC_ADC->ADDR0),32,0);// some sample codes show it should be half-word as only low 16 bit contains the data.
+    dma4.source(&(LPC_ADC->ADDR0),0,16);// some sample codes show it should be half-word as only low 16 bit contains the data.
 																				// but I think it should be 32 as the reigster is 32-bit width 
     dma4.TriggerSource(_ADC);
 		dma4.TriggerDestination(_UART0_TX);
     dma4.attach_TC(led_switchon_p2p);
-		dma4.start(4);
+		dma4.start(1);
     dma4.wait();
     
-    pc.printf("\nFinish!\r\n");
+   // pc.printf("\nFinish!\r\n");
 #endif
 
 #if test_all
@@ -236,22 +400,22 @@ int main(void)
     dma1.destination (dst1, 1);
     dma1.attach_TC(led_switchon_m2m) ;
 		dma1.attach_Err (IRQ_err);
-		dma1.init();
+	
 
 
    // char src2[] = "This message was transmitted via UART DMA from memor";
-		char src2[] = "This is memory type" ;
-		size_t size2 = sizeof (src2);
+		
+		size_t size2 = sizeof (src);
 		pc.printf("the size is %d",size2);
 		wait(1);
     LPC_UART0->FCR  |=  1<<3 ; //Enable UART DMA mode
 		LPC_UART0->LCR &= ~(1<<3); // No parity bit genrated 
     dma2.destination(&(LPC_UART0->THR),0, sizeof(char)*8);
-    dma2.source(src2,1, sizeof(char)*8);
+    dma2.source(src,1, sizeof(char)*8);
     dma2.TriggerDestination(_UART0_TX);
     dma2.attach_TC(led_switchon_m2p);//  m2p_finishFlag will be set when FINISH interrupt generated
  	  dma2.attach_Err (IRQ_err);
-    dma2.init();
+
  
 		volatile unsigned int data = 0;
 		volatile int *dst3  = (int *) malloc(128);
@@ -263,7 +427,7 @@ int main(void)
     dma3.TriggerSource(_ADC);
     dma3.attach_TC(led_switchon_p2m);
     dma3.attach_Err (IRQ_err);
-    dma3.init();
+  
 
 		dma1.start(size1);
 		dma2.start(size2);
@@ -347,8 +511,6 @@ void ADC_init()
 	
 void led_switchon_m2m(void)
 {
-    t.stop();
-	  pc.printf("The time DMA took was %f seconds\r\n", t.read());
     myled1=1;
 }
 
@@ -463,3 +625,21 @@ void burst_ADC_init()
 		// Start conversion
     LPC_ADC->ADCR |= 1 << 24;
 }
+
+
+uint32_t ADC_read(uint8_t channel)
+{
+    // Select the appropriate channel and start conversion
+    LPC_ADC->ADCR &= ~0xFF;
+    LPC_ADC->ADCR |= 1 << channel;
+    LPC_ADC->ADCR |= 1 << 24;
+    // Repeatedly get the sample data until DONE bit
+    unsigned int data;
+
+    do {
+        data = LPC_ADC->ADGDR;
+    } while ((data & ((unsigned int)1 << 31)) == 0);
+    // Stop conversion
+    LPC_ADC->ADCR &= ~(1 << 24);
+    return (data >> 4) & 0xfff; // 12 bit
+	}
