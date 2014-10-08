@@ -16,11 +16,6 @@ extern "C" {
 //Declare number of DMA channels available. Defined in the dma_api.c
 extern int _channel_num ;
 
-// Decide whether use burst mode
-extern bool BURST_ENABLED;
-// Decide whether pack bytes/half word to word
-extern bool PACKED; 
-
 	
 typedef enum {DISABLE = 0, ENABLE = !DISABLE} FunctionalState;
 
@@ -33,19 +28,14 @@ typedef enum {
     P2P = 0x03
 } TransferType;
 
-//DMA transfer data width
-typedef enum {
-    _byte,
-    _halfword,
-    _word,
-    _long
-}   TransferWidth;
 
 
 // DMA Trigger type.
-// To be done: trigger tye should be able to caculated automatically according to source/destination address
-typedef enum {  // to be reviewed. Is it possible to declare enum in header but defined in cpp? Different platforms might have different trigger
-    ALWAYS = -1,
+// To be done: trigger type should be able to caculated automatically according to source/destination address
+
+
+typedef enum {  
+     ALWAYS ,
     _SSP0_TX,
     _SSP0_RX,
     _SSP1_TX,
@@ -62,7 +52,7 @@ typedef enum {  // to be reviewed. Is it possible to declare enum in header but 
     _UART2_RX,
     _UART3_TX,
     _UART3_RX,
-    _MATCH0_0 = 24,
+    _MATCH0_0,
     _MATCH0_1,
     _MATCH1_0,
     _MATCH1_1,
@@ -71,7 +61,6 @@ typedef enum {  // to be reviewed. Is it possible to declare enum in header but 
     _MATCH3_0,
     _MATCH3_1
 } TriggerType;
-
 
 //define DMA interrupt type: ERR, generated when err happens; FINISH, generated when transfer finish
 typedef enum {ERR, FINISH} DMA_IT;
@@ -116,32 +105,35 @@ void DMA_Init(int channel, DMA_InitTypeDef* DMA_InitStruct);
 /**
   * @brief  Reset the DMA channel to default reset value
   * @param  channel. The chosen channel number
-  * @param  DMA_InitStruct: pointer to a DMA_InitTypeDef structure that contains
-  *         the configuration information for the specified DMA Channel.
   * @retval None
   */
-void DMA_Reset(int channel, DMA_InitTypeDef* DMA_InitStruct);
-
+void DMA_Reset(int channel);
 
 
 /**
   * @brief  Allocate a struct pointer point to DMA_InitTypeDef type memory space. Fills each DMA_InitStruct member with its default value.
   * @param  None
-	* @retval a pointer point to a memory holding DMA_InitTypeDef structure.
+	* @retval a pointer point to a  DMA_InitTypeDef structure.
   */
-DMA_InitTypeDef*  DMA_StructInit();
+DMA_InitTypeDef*  DMA_StructCreate(void);
+
+
 
 /**
-  * @brief  Check whether the address is with memory ranage.
-  * @param  src: the physical address
-  * @retval 0 or 1
+  * @brief  Delete the memory allocated for the DMA_InitTypeDef structure
+  * @param  A pointer point to a DMA_InitTypeDef structure 
+	* @retval None
   */
-__inline bool isMemory (uint32_t addr);
+void DMA_StructDelete(DMA_InitTypeDef* ptr);
 
 
 typedef void (*func_ptr)();
+
+
+
 void DMA_IRQ_handler(void);
 void DMA_IRQ_attach (int channel, int status, func_ptr ptr);
+void DMA_IRQ_detach (int channel);
 
 #ifdef __cplusplus
 }
