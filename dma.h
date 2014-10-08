@@ -46,6 +46,7 @@ public:
     */
     DMA(int priority = -1);
 
+    ~DMA ();
     /** @brief  Get source starting address, transfer width and setting auto increment.
      *  @param  src. The source starting address.
 			* @param  inc. Set memory automatice increment.
@@ -85,10 +86,6 @@ public:
      */
     void TriggerDestination(TriggerType trig = ALWAYS );
 		
-		 /** @brief  Configure the DMA registers according to the users' configurations
-		   * @retval None
-		 **/
-		void init();
 
     /** @brief  Start the DMA to transfer data
      *  @param  lengh. Define how many data the DMA needs to transfer
@@ -99,8 +96,7 @@ public:
 		 * @retval  None
      */
     void wait();
-		
-		
+				
 
     /** @brief  Attach a function to DMA IRQ handler. The attached function will be called when the transfer has completed successfully.
      *  @param  *fptr. The function pointer.
@@ -110,15 +106,8 @@ public:
         NVIC_SetVector(DMA_IRQn, (uint32_t)&DMA_IRQ_handler);
         NVIC_EnableIRQ(DMA_IRQn);
     }
-    template<typename T> 
-    void attach_TC(T* tptr, void (T::*mptr)(void)) {
-        if((mptr != NULL) && (tptr != NULL)) {
-            _TCCallback.attach(tptr, mptr);
-        }
-        NVIC_SetVector(DMA_IRQn, (uint32_t)&DMA_IRQ_handler);
-        NVIC_EnableIRQ(DMA_IRQn);
-    }
-        
+		
+		
     /** @brief  Attach a function to DMA IRQ handler. The attached function will be called when the transfer has completed successfully.
      *  @param  *fptr. The function pointer.
      *  @note   There are two attach function attach_TC and attach_Err in case you want to attach different functions when tranfer finishs or fails
@@ -128,16 +117,9 @@ public:
         NVIC_SetVector(_DMA_IRQ, (uint32_t)&DMA_IRQ_handler);
         NVIC_EnableIRQ(_DMA_IRQ);
     }
-    template<typename T>
-    void attach_Err(T* tptr, void (T::*mptr)(void)) {
-        if((mptr != NULL) && (tptr != NULL)) {
-            _ErrCallback.attach(tptr, mptr);
-        }
-        NVIC_SetVector(DMA_IRQn, (uint32_t)&DMA_IRQ_handler);
-        NVIC_EnableIRQ(DMA_IRQn);
-    }
-        
+
     DMA_InitTypeDef* dma_init_struct;
+		
     int channel_num;
 
 protected:
