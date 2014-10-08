@@ -8,10 +8,15 @@ DMA::DMA ( int priority )
 {
     chan = chooseFreeChannel(priority) ;
     channel_num = _channel_num;
-    DMA_Reset(chan, dma_init_struct);// reset the register value to default and clear the interrupts
-    dma_init_struct = DMA_StructInit(); // initialize the dma data structure to default value
+    DMA_Reset(chan);// reset the register value to default and clear the interrupts
+    dma_init_struct = DMA_StructCreate(); // initialize the dma data structure to default value
 }
 
+
+DMA::~DMA(){
+   DMA_StructDelete(dma_init_struct);
+	 DMA_IRQ_detach(chan);
+}
 
 // if no channel choosed, choose whichever free channel, otherwise, wait until the channel is free
 int DMA::chooseFreeChannel (int channel)
@@ -26,8 +31,11 @@ int DMA::chooseFreeChannel (int channel)
             if (reval>(channel_num-1))
                 reval=0;
         }
-    } else
-        while (DMA_ChannelActive(reval));//if has chosen the channel, wait until the channel is free
+    } 
+		else
+		{
+		while (DMA_ChannelActive(reval));//if has chosen the channel, wait until the channel is free
+		}
     return reval;
 }
 
@@ -41,12 +49,11 @@ void DMA::TriggerDestination(TriggerType trig)
     DMA_TriggerDestination(dma_init_struct, trig);
 }
 
-void DMA::init()
-{
-    DMA_Init(chan,dma_init_struct);
-}
+
+
 void DMA::start ( int len)
 {
+  	DMA_Init(chan,dma_init_struct);
 	  DMA_Start (chan, dma_init_struct, len);
 }
 
