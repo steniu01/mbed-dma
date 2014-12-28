@@ -4,17 +4,18 @@
 namespace mbed {
 
 
-DMA::DMA ( int priority )
+DMA::DMA (int priority):
+channel_num(_channel_num) 
 {
     chan = chooseFreeChannel(priority) ;
-    channel_num = _channel_num;
-    DMA_Reset(chan);// reset the register value to default and clear the interrupts
-    dma_init_struct = DMA_StructCreate(); // initialize the dma data structure to default value
+//    channel_num = _channel_num;
+    DMA_reset(chan);// reset the register value to default and clear the interrupts
+    dma_init_struct = DMA_struct_create(); // initialize the dma data structure to default value
 }
 
 
 DMA::~DMA(){
-   DMA_StructDelete(dma_init_struct);
+   DMA_struct_delete(dma_init_struct);
 	 DMA_IRQ_detach(chan);
 }
 
@@ -25,7 +26,7 @@ int DMA::chooseFreeChannel (int channel)
     if (channel > (channel_num-1) || channel < 0) {
         reval = 0;
         while (1) { //if not chosen channel, round robin checked which channel is free
-            if (!DMA_ChannelActive(reval))
+            if (!DMA_channel_active(reval))
                 return reval;
             reval++;
             if (reval>(channel_num-1))
@@ -34,31 +35,41 @@ int DMA::chooseFreeChannel (int channel)
     } 
 		else
 		{
-		while (DMA_ChannelActive(reval));//if has chosen the channel, wait until the channel is free
+		while (DMA_channel_active(reval));//if has chosen the channel, wait until the channel is free
 		}
     return reval;
 }
 
 void DMA::TriggerSource(TriggerType trig)
 {
-    DMA_TriggerSource(dma_init_struct, trig);
+    DMA_trigger_source(dma_init_struct, trig);
 }
 
 void DMA::TriggerDestination(TriggerType trig)
 {
-    DMA_TriggerDestination(dma_init_struct, trig);
+    DMA_trigger_destination(dma_init_struct, trig);
 }
 
-
-
-void DMA::start ( int len)
+/*
+void DMA::next(LLI* list)
 {
-  	DMA_Init(chan,dma_init_struct);
-	  DMA_Start (chan, dma_init_struct, len);
+		DMA_next(dma_init_struct, list);
+}
+*/
+
+void DMA::next(const uint32_t src, const uint32_t dst, uint32_t size)
+{
+   DMA_next(dma_init_struct, src, dst, size);
+}
+
+void DMA::start (unsigned int len)
+{
+  	DMA_init(chan,dma_init_struct);
+	  DMA_start (chan, dma_init_struct, len);
 }
 
 void DMA::wait()
 {
-    while (DMA_ChannelActive(chan));
+    while (DMA_channel_active(chan));
 }
 }

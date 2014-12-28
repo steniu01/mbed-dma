@@ -35,10 +35,11 @@ func_ptr dma_irq_error[8];
 
 
 // Optimisation 1. Use burst mode
-#define BURST_ENABLED 1
+#define BURST_ENABLED 0
 // Optimisation 2. Pack bytes/half  to word
-#define  WORD_TRANSFER 1
-
+#define  WORD_TRANSFER 0
+// define whether transfer large size data supported
+#define transfer_large_size
 
 
 // map the trigger index
@@ -81,7 +82,9 @@ typedef struct DMA_InitTypeDef{
     uint32_t DMA_SrcWidth; //Specifies the source transfer width   
     uint32_t DMA_DestWidth; // Specifies the destination transfer width   
     uint32_t DMA_LLI; // Specifies the next link address   
-    bool DMA_SrcInc;  // Specifies whether the source is incremented or not 
+		LLI* LLI_list[32]; // Declare an array to store up to 32 linked lists. We probably won't need that much
+		unsigned int LLI_count; 
+		bool DMA_SrcInc;  // Specifies whether the source is incremented or not 
     bool DMA_DestInc; // Specifies whether the destination is incremented or not 
     bool DMA_TermInt; // Specifies whether the terminal count interrupt enabled or not 
     int DMA_TriggerSource; // Specifies the source trigger 
@@ -96,7 +99,7 @@ typedef struct DMA_InitTypeDef{
   * @param  src: the physical address
   * @retval 0 or 1
   */
-__inline static bool isMemory (uint32_t addr);
+__inline static bool is_memory(uint32_t addr);
 
 /**
  * @brief  Static function. Automatice cacluate the transfer type according to the source and destination address
@@ -104,7 +107,7 @@ __inline static bool isMemory (uint32_t addr);
  * @param  dst_addr. Destination starting address.
  * @retval Transfer type. It can be M2M,M2P,P2M or P2P
  */
-static TransferType getTransferType (uint32_t src_addr, uint32_t dst_addr );
+static TransferType get_transfer_type(uint32_t src_addr, uint32_t dst_addr );
 
 /**
   * @brief  Static function. Get the channel address according to the channel number
@@ -112,7 +115,7 @@ static TransferType getTransferType (uint32_t src_addr, uint32_t dst_addr );
   * @retval Chosen channel base address
   */
 	
-__inline static LPC_GPDMACH_TypeDef* returnChannel(int channel)
+__inline static LPC_GPDMACH_TypeDef* return_channel(int channel)
 {
     return (LPC_GPDMACH_TypeDef*)(LPC_GPDMACH0_BASE + 0x20*channel);
 }
@@ -123,7 +126,7 @@ __inline static LPC_GPDMACH_TypeDef* returnChannel(int channel)
   */
 
 
-void DMA_Destination (DMA_InitTypeDef* DMA_InitStruct, uint32_t dst, int width, bool inc)
+void DMA_destination(DMA_InitTypeDef* DMA_InitStruct, uint32_t dst, unsigned int width, bool inc)
 {
     DMA_InitStruct->DMA_DstAddr = dst;
     DMA_InitStruct->DMA_SrcBurst = 0x00; // 1 byte To be done
@@ -132,7 +135,7 @@ void DMA_Destination (DMA_InitTypeDef* DMA_InitStruct, uint32_t dst, int width, 
 }
 
 
-void DMA_Source (DMA_InitTypeDef* DMA_InitStruct, uint32_t src, int width, bool inc)
+void DMA_source (DMA_InitTypeDef* DMA_InitStruct, uint32_t src, unsigned int width, bool inc)
 {
     DMA_InitStruct->DMA_SrcAddr = src;
     DMA_InitStruct->DMA_SrcBurst = 0x00; // 1 byte
@@ -140,30 +143,147 @@ void DMA_Source (DMA_InitTypeDef* DMA_InitStruct, uint32_t src, int width, bool 
     DMA_InitStruct->DMA_SrcWidth = (width >> 4);
 }
 
-
-void DMA_TriggerSource(DMA_InitTypeDef* DMA_InitStruct, TriggerType trig)
+	
+void DMA_trigger_source(DMA_InitTypeDef* DMA_InitStruct, TriggerType trig)
 {
     DMA_InitStruct->DMA_TriggerSource = trigger_value[trig];
 }
 
 
-void DMA_TriggerDestination(DMA_InitTypeDef* DMA_InitStruct, TriggerType trig)
+void DMA_trigger_destination(DMA_InitTypeDef* DMA_InitStruct, TriggerType trig)
 {
     DMA_InitStruct->DMA_TriggerDestination = trigger_value[trig];
 }
 
+void DMA_next(DMA_InitTypeDef* DMA_InitStruct, const uint32_t src, const uint32_t dst, uint32_t size)
+{
+		//static int count = 0; 
+		DMA_InitStruct->LLI_list[DMA_InitStruct->LLI_count] = malloc(sizeof(LLI));
+	  DMA_InitStruct->LLI_list[DMA_InitStruct->LLI_count]->LLI_dst = dst;
+	  DMA_InitStruct->LLI_list[DMA_InitStruct->LLI_count]->LLI_src = src;
+	  DMA_InitStruct->LLI_list[DMA_InitStruct->LLI_count]->LLI_next = 0; // 0 not NULL as the programmer manual says LLI_next should be 0 if it is the last of the lists
+		DMA_InitStruct->LLI_list[DMA_InitStruct->LLI_count]->LLI_control = size & 0xFFF; 
+		DMA_InitStruct->LLI_count++;
+		printf ("the count number is %d \n", DMA_InitStruct->LLI_count);
+	// TBD: need to add assert to check the input size;
+	//	list->LLI_control = size;
+}
 
 
-void DMA_Start (int channel, DMA_InitTypeDef* DMA_InitStruct, int length)
+/*
+void DMA_next(DMA_InitTypeDef* DMA_InitStruct, LLI* list)
+{
+  DMA_InitStruct->DMA_LLI = (uint32_t)list; 
+}
+*/
+
+
+
+void DMA_init(int channel, DMA_InitTypeDef* DMA_InitStruct)
+{
+
+    LPC_GPDMACH_TypeDef* GPDMA_channel;
+    // Get DMA channel address
+    GPDMA_channel = return_channel(channel);
+    // Calcuate transfer type according to source address and destination address
+    DMA_InitStruct->DMA_TransferType = get_transfer_type(DMA_InitStruct->DMA_SrcAddr, DMA_InitStruct->DMA_DstAddr);
+    // Reset interrupt pending bits for DMA Channel
+    LPC_GPDMA->DMACIntTCClear = 1<<channel;
+    LPC_GPDMA->DMACIntErrClr = 1<<channel;
+	   
+
+    /*--------------------------- DMAy channelx request select register ----------------*/
+    // Choose UART or Timer DMA request for DMA inputs 8 through 15
+
+    if ( (DMA_InitStruct->DMA_TriggerSource & 0x10) || (DMA_InitStruct->DMA_TriggerDestination & 0x10))
+        LPC_SC->DMAREQSEL |= 1 << ((DMA_InitStruct->DMA_TriggerSource || DMA_InitStruct->DMA_TriggerSource) - 24); // I don't know why. The user manual says DMAREQSET is GPDMA register, but in mbed, it is LPC_SC register
+    else
+        LPC_SC->DMAREQSEL &= ~(1 << ((DMA_InitStruct->DMA_TriggerSource - 24)&& (DMA_InitStruct->DMA_TriggerDestination - 24)));
+
+
+    /*--------------------------- DMAy channelx source and destination ----------------*/
+    // Write to DMA channel source address
+    GPDMA_channel->DMACCSrcAddr = DMA_InitStruct->DMA_SrcAddr;
+    // Write to DMA channel destination address
+    GPDMA_channel->DMACCDestAddr = DMA_InitStruct->DMA_DstAddr;
+
+		#if BURST_ENABLED
+
+		if (DMA_InitStruct->DMA_TransferType == M2M)
+		{
+		    DMA_InitStruct->DMA_SrcBurst = 7; // always set burst size as 256, as it seems always work no matter the source size.
+        DMA_InitStruct->DMA_DestBurst = 7; // always set destination size as 256, as it seems always work no matter the source size.
+		}
+		#endif
+		
+ 
+    /*--------------------------- DMAy channelx control register ----------------*/
+    // Set TransferSize
+    // Set source burst size
+    // Set destination burst size
+    // Set source width size
+    // Set destination width size
+    // Set source increment
+    // Set destination increment
+    // Set destination increment
+    // Enable terminal count interrupt
+    GPDMA_channel->DMACCControl |= (DMA_InitStruct->DMA_SrcBurst<<DMA_CCxControl_SBSize_Pos)  |
+                                   (DMA_InitStruct->DMA_DestBurst<<DMA_CCxControl_DBSize_Pos) |
+                                   (DMA_InitStruct->DMA_SrcWidth<<DMA_CCxControl_SWidth_Pos)  |
+                                   (DMA_InitStruct->DMA_DestWidth<<DMA_CCxControl_DWidth_Pos) |
+                                   (DMA_InitStruct->DMA_SrcInc<<DMA_CCxControl_SI_Pos)    |
+                                   (DMA_InitStruct->DMA_DestInc<<DMA_CCxControl_DI_Pos)   |
+                                   (DMA_InitStruct->DMA_TermInt<<DMA_CCxControl_I_Pos );
+
+    /*--------------------------- DMAy channelx configuration register ----------------*/
+    // Set source periheral trigger. If the source is memory, this bit is ignored. Set according to low 4 bit of DMA_Trigger
+    // Set destination periheral trigger. If the destination is memory, this bit is ignored. Set according low 4 bit of DMA_Trigger
+    // Set transfer type: M2M, M2P, P2M, M2M
+    GPDMA_channel->DMACCConfig |= ((DMA_InitStruct->DMA_TriggerSource & 0x0f) <<DMA_CCxConfig_SrcPeripheral_Pos)|    //set SrcPeripheral according low 4 bit of DMA_Trigger
+                                  ((DMA_InitStruct->DMA_TriggerDestination & 0x0f)<<DMA_CCxConfig_DestPeripheral_Pos)|      //set DstPeripheral according low 4 bit of DMA_Trigger
+                                  (DMA_InitStruct->DMA_TransferType<<DMA_CCxConfig_TransferType_Pos);
+		
+		/* set link list items register*/
+		if(DMA_InitStruct->LLI_count != 0)
+		{
+				int j;
+		    for (j=0; j < DMA_InitStruct->LLI_count; j++) 
+				{
+				    DMA_InitStruct->LLI_list[j]->LLI_control |= GPDMA_channel->DMACCControl;
+						if ( j< DMA_InitStruct->LLI_count - 1)
+				  	DMA_InitStruct->LLI_list[j]->LLI_next = (uint32_t)DMA_InitStruct->LLI_list[j+1];
+				}
+			  GPDMA_channel->DMACCLLI = (uint32_t)DMA_InitStruct->LLI_list[0];	
+		}
+			//LPC_GPDMA->DMACSync =0x1;															
+}//end of DMA_init
+
+
+void DMA_start(int channel, DMA_InitTypeDef* DMA_InitStruct, unsigned int length)
 {
 	   LPC_GPDMACH_TypeDef* volatile GPDMA_channel;
     // Get DMA channel address
-    GPDMA_channel = returnChannel(channel);
+    GPDMA_channel = return_channel(channel);
 
 		// Set the transfer size
-	  // Put it here rather than in DMA_Init. So that one could send new transfer data without reinit other registers.
-	  DMA_InitStruct->DMA_TransferSize = (uint32_t)length; 
+	  // Put it here rather than in DMA_Init. So that one could send new transfer data without reinit other registers
 	
+		#ifdef transfer_large_size
+	  while (length > 4096)
+		{
+				int temp_length;
+				int count;
+		    temp_length = length;
+				length = length - 4096;
+				LLI* newlist = malloc(sizeof(LLI));
+			  newlist->LLI_src = DMA_InitStruct->DMA_SrcAddr + count*4096*DMA_InitStruct->DMA_SrcInc; // We won't increase source address if it is not incremented 
+				newlist->LLI_dst = DMA_InitStruct->DMA_DstAddr + count*4096*DMA_InitStruct->DMA_DestInc; 
+				newlist->LLI_next = (uint32_t)DMA_InitStruct->LLI_list[0];
+			  newlist->LLI_control = 0xFFF | GPDMA_channel->DMACCControl;
+		}
+		#endif 
+		
+		DMA_InitStruct->DMA_TransferSize = (uint32_t)length; 
     
 	  #if WORD_TRANSFER 
     int dst = (int)DMA_InitStruct->DMA_DstAddr;
@@ -171,12 +291,11 @@ void DMA_Start (int channel, DMA_InitTypeDef* DMA_InitStruct, int length)
 	  int old_SrcWidth = DMA_InitStruct->DMA_SrcWidth;
 		int old_DstWidth = DMA_InitStruct->DMA_DestWidth;
 	  int new_length = 0;
-	  int new_width = 2; // new width will be word
+	  int new_width = 2; // New width will be word
     if ((dst % sizeof(long) == 0) && (src % sizeof(long) == 0) && // Only use word aligned when starting addresss is at 4 bytes boundary
 			  (length >=4) && // Only use word aligned when length is no less than 4
 		    (DMA_InitStruct->DMA_SrcInc==1) &&   // Only use word aligned when the source is incretmental 
-				 (DMA_InitStruct->DMA_DestInc == 1)) // Only use word aligned when the address is incretmental 
-																																							
+				 (DMA_InitStruct->DMA_DestInc == 1)) // Only use word aligned when the address is incretmental 																																					
 		{
 		    new_length = (length << old_SrcWidth) >> 2; // Get the size of the word-aligned part
 			 																					
@@ -250,7 +369,6 @@ void DMA_Start (int channel, DMA_InitTypeDef* DMA_InitStruct, int length)
     // Unmask IE
     GPDMA_channel->DMACCConfig |= 1ul<< DMA_CCxConfig_IE_Pos;	
    
-
 	  
 		GPDMA_channel->DMACCControl |= DMA_InitStruct->DMA_TransferSize << DMA_CCxControl_TransferSize_Pos;
 	  // Enable DMA 
@@ -259,90 +377,21 @@ void DMA_Start (int channel, DMA_InitTypeDef* DMA_InitStruct, int length)
 }
 
 
-bool DMA_ChannelActive (int channel)
+bool DMA_channel_active(int channel)
 {
     LPC_SC->PCONP |= (1 << 29);
     return (LPC_GPDMA->DMACEnbldChns && (1<<channel));
 }
 
 
-void DMA_Init(int channel, DMA_InitTypeDef* DMA_InitStruct)
-{
 
-    LPC_GPDMACH_TypeDef* GPDMA_channel;
-    // Get DMA channel address
-    GPDMA_channel = returnChannel(channel);
-    // Calcuate transfer type according to source address and destination address
-    DMA_InitStruct->DMA_TransferType = getTransferType(DMA_InitStruct->DMA_SrcAddr, DMA_InitStruct->DMA_DstAddr);
-    // Reset interrupt pending bits for DMA Channel
-    LPC_GPDMA->DMACIntTCClear = 1<<channel;
-    LPC_GPDMA->DMACIntErrClr = 1<<channel;
-
-    /*--------------------------- DMAy channelx request select register ----------------*/
-    // Choose UART or Timer DMA request for DMA inputs 8 through 15
-
-    if ( (DMA_InitStruct->DMA_TriggerSource & 0x10) || (DMA_InitStruct->DMA_TriggerDestination & 0x10))
-        LPC_SC->DMAREQSEL |= 1 << ((DMA_InitStruct->DMA_TriggerSource || DMA_InitStruct->DMA_TriggerSource) - 24); // I don't know why. The user manual says DMAREQSET is GPDMA register, but in mbed, it is LPC_SC register
-    else
-        LPC_SC->DMAREQSEL &= ~(1 << ((DMA_InitStruct->DMA_TriggerSource - 24)&& (DMA_InitStruct->DMA_TriggerDestination - 24)));
-
-
-    /*--------------------------- DMAy channelx source and destination ----------------*/
-    // Write to DMA channel source address
-    GPDMA_channel->DMACCSrcAddr = DMA_InitStruct->DMA_SrcAddr;
-    // Write to DMA channel destination address
-    GPDMA_channel->DMACCDestAddr = DMA_InitStruct->DMA_DstAddr;
-
-		#if BURST_ENABLED
-
-		if (DMA_InitStruct->DMA_TransferType == M2M)
-		{
-		    DMA_InitStruct->DMA_SrcBurst = 7; // always set burst size as 256, as it seems always work no matter the source size.
-        DMA_InitStruct->DMA_DestBurst = 7; // always set destination size as 256, as it seems always work no matter the source size.
-		}
-		#endif
-		
- 
-    /*--------------------------- DMAy channelx control register ----------------*/
-    // Set TransferSize
-    // Set source burst size
-    // Set destination burst size
-    // Set source width size
-    // Set destination width size
-    // Set source increment
-    // Set destination increment
-    // Set destination increment
-    // Enable terminal count interrupt
-    GPDMA_channel->DMACCControl |= (DMA_InitStruct->DMA_SrcBurst<<DMA_CCxControl_SBSize_Pos)  |
-                                   (DMA_InitStruct->DMA_DestBurst<<DMA_CCxControl_DBSize_Pos) |
-                                   (DMA_InitStruct->DMA_SrcWidth<<DMA_CCxControl_SWidth_Pos)  |
-                                   (DMA_InitStruct->DMA_DestWidth<<DMA_CCxControl_DWidth_Pos) |
-                                   (DMA_InitStruct->DMA_SrcInc<<DMA_CCxControl_SI_Pos)    |
-                                   (DMA_InitStruct->DMA_DestInc<<DMA_CCxControl_DI_Pos)   |
-                                   (DMA_InitStruct->DMA_TermInt<<DMA_CCxControl_I_Pos );
-
-
-    /*--------------------------- DMAy channelx configuration register ----------------*/
-    // Set source periheral trigger. If the source is memory, this bit is ignored. Set according to low 4 bit of DMA_Trigger
-    // Set destination periheral trigger. If the destination is memory, this bit is ignored. Set according low 4 bit of DMA_Trigger
-    // Set transfer type: M2M, M2P, P2M, M2M
-    GPDMA_channel->DMACCConfig |= ((DMA_InitStruct->DMA_TriggerSource & 0x0f) <<DMA_CCxConfig_SrcPeripheral_Pos)|    //set SrcPeripheral according low 4 bit of DMA_Trigger
-                                  ((DMA_InitStruct->DMA_TriggerDestination & 0x0f)<<DMA_CCxConfig_DestPeripheral_Pos)|      //set DstPeripheral according low 4 bit of DMA_Trigger
-                                  (DMA_InitStruct->DMA_TransferType<<DMA_CCxConfig_TransferType_Pos);
-																	
-																	
-		//LPC_GPDMA->DMACSync =0x1;															
-
-}//end of DMA_init
-
-
-void DMA_Reset(int channel)
+void DMA_reset(int channel)
 {
 	  assert (channel <= _channel_num && channel>=0); 
     LPC_SC->PCONP |= (1 << 29);
     LPC_GPDMACH_TypeDef* GPDMA_channel;
     //Get DMA channel address
-    GPDMA_channel = returnChannel(channel);
+    GPDMA_channel = return_channel(channel);
     GPDMA_channel->DMACCConfig = 0;
     GPDMA_channel->DMACCControl = 0;
     GPDMA_channel->DMACCLLI = 0;
@@ -354,7 +403,7 @@ void DMA_Reset(int channel)
 }
 
 
-DMA_InitTypeDef* DMA_StructCreate(void)
+DMA_InitTypeDef* DMA_struct_create(void)
 {
 	  DMA_InitTypeDef* DMA_InitStruct = (DMA_InitTypeDef* ) malloc(sizeof(DMA_InitTypeDef));
     /*-------------- Reset DMA init structure parameters values ------------------*/
@@ -366,6 +415,7 @@ DMA_InitTypeDef* DMA_StructCreate(void)
     DMA_InitStruct->DMA_SrcWidth = 0;
     DMA_InitStruct->DMA_DestWidth = 0;
     DMA_InitStruct->DMA_LLI = 0;
+	  DMA_InitStruct->LLI_count = 0 ; 
     DMA_InitStruct->DMA_SrcInc = 0;
     DMA_InitStruct->DMA_DestInc = 0;
     DMA_InitStruct->DMA_TermInt = 0;
@@ -375,12 +425,12 @@ DMA_InitTypeDef* DMA_StructCreate(void)
 	  return DMA_InitStruct;
 } //end of DMA_StructInit
 
-void DMA_StructDelete(DMA_InitTypeDef* ptr)
+void DMA_struct_delete(DMA_InitTypeDef* ptr)
 {
 	free (ptr);
 }
 
-__inline static bool isMemory (uint32_t addr)
+__inline static bool is_memory (uint32_t addr)
 {
     if ((addr >> 28) == 0 || (addr >> 28)== 1)
         return 1;
@@ -389,7 +439,7 @@ __inline static bool isMemory (uint32_t addr)
 }
 
 
-void  DMA_IRQ_handler( void)
+void  DMA_IRQ_handler(void)
 {
     //only call the attached function when certain interrupt happened on the right channel
 		unsigned i ; 
@@ -417,7 +467,7 @@ void  DMA_IRQ_handler( void)
 }
 
 
-void DMA_IRQ_attach (int channel, int status, func_ptr ptr)
+void DMA_IRQ_attach(int channel, int status, func_ptr ptr)
 {
     assert (channel <= _channel_num && channel>=0);
     assert (status == ERR || status == FINISH);
@@ -430,7 +480,7 @@ void DMA_IRQ_attach (int channel, int status, func_ptr ptr)
 
 
 
-void DMA_IRQ_detach (int channel)
+void DMA_IRQ_detach(int channel)
 {
     dma_irq_error[channel] = 0;
     dma_irq_finish[channel] = 0;
@@ -439,15 +489,15 @@ void DMA_IRQ_detach (int channel)
 
 
 
-static TransferType getTransferType (uint32_t src_addr, uint32_t dst_addr )
+static TransferType get_transfer_type(uint32_t src_addr, uint32_t dst_addr)
 {
-    if (isMemory(src_addr)) {   //if source is memory
-        if(isMemory(dst_addr))  //if destination is memory
+    if (is_memory(src_addr)) {   //if source is memory
+        if(is_memory(dst_addr))  //if destination is memory
             return M2M;    //return M2M if source is memory and destination is memory.
         else    //if destination is peripheral
             return M2P;    //return M2P if source is memory and destination is peripheral
     } else {        //if source is peripheral
-        if(isMemory(dst_addr))      //if destination is memory
+        if(is_memory(dst_addr))      //if destination is memory
             return P2M;     //return P2M if source is peripheral and destination is memory
         else        //if destination is peripheral
             return P2P;     //return P2P if source is peripheral and destination is peripheral

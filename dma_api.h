@@ -32,8 +32,6 @@ typedef enum {
 
 // DMA Trigger type.
 // To be done: trigger type should be able to caculated automatically according to source/destination address
-
-
 typedef enum {  
      ALWAYS ,
     _SSP0_TX,
@@ -74,21 +72,18 @@ extern IRQn_Type _DMA_IRQ;
 
 typedef struct DMA_InitTypeDef DMA_InitTypeDef;
 
+typedef struct LLI
+{
+	 uint32_t LLI_src;
+	 uint32_t LLI_dst;
+	 uint32_t LLI_next;
+	 uint32_t LLI_control; // Only care about transfer size, as other charactors will be same as initial transfer
+}LLI;
 
-void DMA_Destination (DMA_InitTypeDef* DMA_InitStruct, uint32_t dst, int width, bool inc);
-void DMA_Source (DMA_InitTypeDef* DMA_InitStruct, uint32_t src, int width, bool inc);
-void DMA_TriggerSource(DMA_InitTypeDef* DMA_InitStruct, TriggerType trig);
-void DMA_TriggerDestination(DMA_InitTypeDef* DMA_InitStruct, TriggerType trig);
-void DMA_Start (int channel, DMA_InitTypeDef* DMA_InitStruct, int lengh);
-
-
-/**
-  * @brief  Check whether channel is active or not
-  * @param  channel. The channel number.
-  * @retval 0 or 1
-  */
-bool DMA_ChannelActive (int channel);
-
+void DMA_destination(DMA_InitTypeDef* DMA_InitStruct, const uint32_t dst, unsigned int width, bool inc);
+void DMA_source(DMA_InitTypeDef* DMA_InitStruct, const uint32_t src, unsigned int width, bool inc);
+void DMA_trigger_source(DMA_InitTypeDef* DMA_InitStruct, TriggerType trig);
+void DMA_trigger_destination(DMA_InitTypeDef* DMA_InitStruct, TriggerType trig);
 
 /**
   * @brief  Initializes the DMAy Channelx according to the specified parameters
@@ -98,7 +93,19 @@ bool DMA_ChannelActive (int channel);
   *         the configuration information for the specified DMA Channel.
   * @retval None
   */
-void DMA_Init(int channel, DMA_InitTypeDef* DMA_InitStruct);
+void DMA_init(int channel, DMA_InitTypeDef* DMA_InitStruct);
+
+void DMA_start(int channel, DMA_InitTypeDef* DMA_InitStruct, unsigned int lengh);
+//void DMA_next(DMA_InitTypeDef* DMA_InitStruct, LLI* list);
+void DMA_next(DMA_InitTypeDef* DMA_InitStruct, const uint32_t src, const uint32_t dst, uint32_t size); // The input size has to smaller than 4096bytes. 
+/**
+  * @brief  Check whether channel is active or not
+	* @param  channel. The channel number.
+  * @retval 0 or 1
+  */
+bool DMA_channel_active(int channel);
+
+
 
 
 
@@ -107,7 +114,7 @@ void DMA_Init(int channel, DMA_InitTypeDef* DMA_InitStruct);
   * @param  channel. The chosen channel number
   * @retval None
   */
-void DMA_Reset(int channel);
+void DMA_reset(int channel);
 
 
 /**
@@ -115,7 +122,7 @@ void DMA_Reset(int channel);
   * @param  None
 	* @retval a pointer point to a  DMA_InitTypeDef structure.
   */
-DMA_InitTypeDef*  DMA_StructCreate(void);
+DMA_InitTypeDef*  DMA_struct_create(void);
 
 
 
@@ -124,7 +131,7 @@ DMA_InitTypeDef*  DMA_StructCreate(void);
   * @param  A pointer point to a DMA_InitTypeDef structure 
 	* @retval None
   */
-void DMA_StructDelete(DMA_InitTypeDef* ptr);
+void DMA_struct_delete(DMA_InitTypeDef* ptr);
 
 
 typedef void (*func_ptr)();
@@ -132,8 +139,8 @@ typedef void (*func_ptr)();
 
 
 void DMA_IRQ_handler(void);
-void DMA_IRQ_attach (int channel, int status, func_ptr ptr);
-void DMA_IRQ_detach (int channel);
+void DMA_IRQ_attach(int channel, int status, func_ptr ptr);
+void DMA_IRQ_detach(int channel);
 
 #ifdef __cplusplus
 }

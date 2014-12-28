@@ -29,9 +29,11 @@ Done 1. make init struct generic -- Done
 #define test_m2m 0
 #define test_m2p 0
 #define test_p2m 0
-#define test_p2p 1
+#define test_p2p 0
 #define test_all 0
 #define test_adc 0
+#define test_LLI 1
+
 
 LocalFileSystem local("local");
 
@@ -165,7 +167,7 @@ char src[] =   "Hello world Copy the logical and implementation_tsmc28hpm direct
     /* test the DMA M2M, copy data from src to dest, and then print out the dest mem data */
 
     pc.printf("start to test DMA M2M test now!\r\n");
-    wait(1);				
+   // wait(1);				
     size_t size = sizeof (src);
     char *dst1  = (char *) malloc(size);
 		char *dst2  = (char *) malloc(size);
@@ -182,6 +184,7 @@ char src[] =   "Hello world Copy the logical and implementation_tsmc28hpm direct
     DMA dma1 (-1) ; // choose whichever free channel
     dma1.source (src,1, 8); // set source as incremental. Not need to set the transfer width as MBED dma will do it for you.
     dma1.destination (dst2, 1, 8);
+	
     dma1.attach_TC(led_switchon_m2m) ;
 		dma1.attach_Err (IRQ_err);
 		t.start();
@@ -200,6 +203,49 @@ char src[] =   "Hello world Copy the logical and implementation_tsmc28hpm direct
    
 #endif
 
+#ifdef test_LLI
+		
+	  pc.printf ("start to test LLI now\r\n");
+
+  	wait(2);
+	
+		char src_dma[] = "This is to test the scatter-gather support \n";
+		char src_LLI[] = "this is from linked item \n";
+		char *dst_LLI  = new char[sizeof(src_LLI)];
+    char *dst= new char[sizeof(src_dma)];
+		LPC_UART0->FCR  |=  1<<3 ; //Enable UART DMA mode
+		LPC_UART0->LCR &= ~(1<<3); // No parity bit generated 
+		
+    DMA dmaLLI(2);
+  //  dmaLLI.destination(&(LPC_UART0->THR),0, sizeof(char)*8);
+		dmaLLI.destination(dst,1, sizeof(char)*8);
+    dmaLLI.source(src_dma,1, sizeof(char)*8);
+  //  dmaLLI.TriggerDestination(_UART0_TX);
+    dmaLLI.attach_TC(led_switchon_m2p);//  m2p_finishFlag will be set when FINISH interrupt generated
+	//	dmaLLI.attach_Err (IRQ_err);
+
+
+	//	LLI* next1  = malloc(sizeof(LLI));
+	
+		LLI * next1 = new LLI;
+    next1->LLI_src = (uint32_t)src_LLI;		
+		next1->LLI_dst = (uint32_t)dst_LLI;
+		next1->LLI_next = 0;
+	//	next1->LLI_size = sizeof(src_LLI) | 0x1 << 31 | 0x1 << 26 | 0x1 << 27; //sizeof(src_LLI);
+	 // dmaLLI.next(next1);
+	  dmaLLI.next((uint32_t)src_LLI, (uint32_t)dst_LLI, sizeof(src_LLI));
+	 // dmaLLI.next((uint32_t)src_LLI, (uint32_t)dst_LLI, 7);
+	//	DMA dmaLLI2(3);
+	//	dmaLLI2.next((uint32_t)src_LLI, (uint32_t)dst_LLI, 7);
+		dmaLLI.start(sizeof(src_dma));
+		dmaLLI.wait();
+	  pc.printf("dst text: %s \r\n", dst);
+		pc.printf("dst text: %s \r\n", dst_LLI);
+		while(1);
+#endif 	
+		
+		
+		
 #if test_m2p
     /*Test m2P, send the memory data to UART;*/ 
     pc.printf ("start to test m2p now\r\n");
@@ -223,7 +269,8 @@ char src[] =   "Hello world Copy the logical and implementation_tsmc28hpm direct
     dma2.TriggerDestination(_UART0_TX);
     dma2.attach_TC(led_switchon_m2p);//  m2p_finishFlag will be set when FINISH interrupt generated
 		dma2.attach_Err (IRQ_err);
-	
+
+		
 		t.start();
     dma2.start(sizeof(src));
 		dma2.wait();
@@ -231,7 +278,7 @@ char src[] =   "Hello world Copy the logical and implementation_tsmc28hpm direct
 		printf("The time DMA took was %f seconds\r\n", t.read());
 		wait(2);
 		
-		
+
 		pc.printf ("Now demonstrate CPU and DMA could work together\r\n");
 		wait(1);
 	  m2p_finishFlag = 0;
@@ -471,7 +518,9 @@ char src[] =   "Hello world Copy the logical and implementation_tsmc28hpm direct
 
 
 
-#endif 
+#endif
+
+
     while (1);
 		return 0;
 }

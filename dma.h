@@ -3,6 +3,14 @@
 // 2.
 // 3. TriggerType 
 
+
+//1. use method to get access to class memebers than access directly. It could help to reduce coupling 
+//2. use MIL to initialize variables
+//3. use const when necessary
+//4. check memcpy / strecpy, memcpy might not do the right thing
+//5. API design , what happens when some platform don;t need API. make sure the user code can be same across platform
+//6. check the user input
+
 #ifndef MBED_DMA_H
 #define MBED_DMA_H
 
@@ -54,10 +62,10 @@ public:
      *  @note   If width is not given, it will set the width automatically according to the data type in the memory
      */
     template<typename T>    // To be reviewd, should put the template into the cpp rather than the header?
-    void source (T* src, bool inc, int width = sizeof(T)*8  ) {
+    void source (T* src, bool inc, unsigned int width = sizeof(T)*8  ) {
         //inc = isMemory ((uint32_t)src); // To be reviewed. How to put this line into the arguments?
         uint32_t src_prt= (uint32_t) src;
-        DMA_Source(dma_init_struct, src_prt, width, inc);
+        DMA_source(dma_init_struct, src_prt, width, inc);
     }
 
     /** @brief  Get destination starting address, transfer width and setting auto increment.
@@ -68,10 +76,10 @@ public:
      *          
      */
     template<typename T>
-    void destination (T* dst, bool inc, int width =sizeof(T)*8 ) {
+    void destination (T* dst, bool inc, unsigned int width =sizeof(T)*8 ) {
         //inc = isMemory ((uint32_t) dst);
         uint32_t dst_ptr=(uint32_t) dst;
-        DMA_Destination(dma_init_struct, dst_ptr, width, inc);
+        DMA_destination(dma_init_struct, dst_ptr, width, inc);
     }
 
     /** @brief  Get source trigger type
@@ -90,13 +98,21 @@ public:
     /** @brief  Start the DMA to transfer data
      *  @param  lengh. Define how many data the DMA needs to transfer
      */
-    void start ( int len);
+    void start(unsigned int len);
+		
+		/** @brief Get the address storing next linked list item   
+		
+		
+		*/
+	//	void next(LLI* list);		
+		void next(const uint32_t src, const uint32_t dst, uint32_t size);
 
     /** @brief  Wait for DMA transaction finishs
-		 * @retval  None
+		 *  @retval  None
      */
     void wait();
-				
+		
+
 
     /** @brief  Attach a function to DMA IRQ handler. The attached function will be called when the transfer has completed successfully.
      *  @param  *fptr. The function pointer.
@@ -117,14 +133,13 @@ public:
         NVIC_SetVector(_DMA_IRQ, (uint32_t)&DMA_IRQ_handler);
         NVIC_EnableIRQ(_DMA_IRQ);
     }
-
-    DMA_InitTypeDef* dma_init_struct;
 		
-    int channel_num;
-
+	
 protected:
     int chan; // the chosen channel number
     int chooseFreeChannel(int channel);
+    int channel_num;
+    DMA_InitTypeDef* dma_init_struct;
 };
 
 }
