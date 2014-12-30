@@ -27,12 +27,12 @@ Done 1. make init struct generic -- Done
 
 #define test_attach 0
 #define test_m2m 0
-#define test_m2p 0
+#define test_m2p 1
 #define test_p2m 0
 #define test_p2p 0
 #define test_all 0
 #define test_adc 0
-#define test_LLI 1
+#define test_LLI 0
 
 
 LocalFileSystem local("local");
@@ -136,8 +136,19 @@ char src[] =   "Hello world Copy the logical and implementation_tsmc28hpm direct
 									"memory is laid out. I thought that each individual address was capable of storing an entire word, not just a byte \r\n" \
 									"algorithm. Memory operates on words rather than bytes. In a 32-bit system, a word is typically 4 bytes, it\r\n"\
 									"akes the same amount of time to read/write 1 byte as it does to read/write 1 word. The second loop is to\r\n"\
-									"Hello world Copy the logical and implementation_tsmc28hpm directories in to the Skadi home directory\r\n" ;
-						
+									"Hello world Copy the logical and implementation_tsmc28hpm directories in to the Skadi home directory\r\n"\
+									"1.pick what kind of geek you want to be there are different kinds of geeks such as sci fi and fantasy geek \r\n"\
+									"#book geek manga geek and many more just be who you really are \r\n"\
+									"2. Read lots of books. Some good geeky books include The Lord Of The Rings, Harry Potter, The Hunger Games,\r\n"\
+									"I Robot and The Zombie Survival Guide. These can be found in your local library.\r\n"\
+									"3.Be smart. Try to get an A in every subject except for PE.\r\n"\
+									"4.Read geeky comics and graphic novels. You don't have to read superhero comics if you want to be geeky.\r\n"\
+									"You can read Science Fiction, Fantasy, Horror or Comedy. \r\n"\
+									"5.Watch geeky movies such as Shaun of The Dead, Star Trek, Doctor who, Revenge Of the Nerds, and Star Wars.\r\n"\
+									"6.Know all things Star Trek. Captain Kirk's background, the fact that spock is a vulcan, and the vulcan salute are all things that a geek must know\r\n";
+									
+									
+									
 
 
 	
@@ -203,7 +214,7 @@ char src[] =   "Hello world Copy the logical and implementation_tsmc28hpm direct
    
 #endif
 
-#ifdef test_LLI
+#if test_LLI
 		
 	  pc.printf ("start to test LLI now\r\n");
 
@@ -212,14 +223,14 @@ char src[] =   "Hello world Copy the logical and implementation_tsmc28hpm direct
 		char src_dma[] = "This is to test the scatter-gather support \n";
 		char src_LLI[] = "this is from linked item \n";
 		char *dst_LLI  = new char[sizeof(src_LLI)];
-    char *dst= new char[sizeof(src_dma)];
+    char *dst= new char[sizeof(src)];
 		LPC_UART0->FCR  |=  1<<3 ; //Enable UART DMA mode
 		LPC_UART0->LCR &= ~(1<<3); // No parity bit generated 
 		
     DMA dmaLLI(2);
   //  dmaLLI.destination(&(LPC_UART0->THR),0, sizeof(char)*8);
 		dmaLLI.destination(dst,1, sizeof(char)*8);
-    dmaLLI.source(src_dma,1, sizeof(char)*8);
+    dmaLLI.source(src,1, sizeof(char)*8);
   //  dmaLLI.TriggerDestination(_UART0_TX);
     dmaLLI.attach_TC(led_switchon_m2p);//  m2p_finishFlag will be set when FINISH interrupt generated
 	//	dmaLLI.attach_Err (IRQ_err);
@@ -233,11 +244,11 @@ char src[] =   "Hello world Copy the logical and implementation_tsmc28hpm direct
 		next1->LLI_next = 0;
 	//	next1->LLI_size = sizeof(src_LLI) | 0x1 << 31 | 0x1 << 26 | 0x1 << 27; //sizeof(src_LLI);
 	 // dmaLLI.next(next1);
-	  dmaLLI.next((uint32_t)src_LLI, (uint32_t)dst_LLI, sizeof(src_LLI));
+	  //dmaLLI.next((uint32_t)src_LLI, (uint32_t)dst_LLI, sizeof(src_LLI));
 	 // dmaLLI.next((uint32_t)src_LLI, (uint32_t)dst_LLI, 7);
 	//	DMA dmaLLI2(3);
 	//	dmaLLI2.next((uint32_t)src_LLI, (uint32_t)dst_LLI, 7);
-		dmaLLI.start(sizeof(src_dma));
+		dmaLLI.start(sizeof(src));
 		dmaLLI.wait();
 	  pc.printf("dst text: %s \r\n", dst);
 		pc.printf("dst text: %s \r\n", dst_LLI);
@@ -276,9 +287,10 @@ char src[] =   "Hello world Copy the logical and implementation_tsmc28hpm direct
 		dma2.wait();
     t.stop();
 		printf("The time DMA took was %f seconds\r\n", t.read());
+		printf("The transfer size is %d \r\n", sizeof(src));
 		wait(2);
+		while(1);
 		
-
 		pc.printf ("Now demonstrate CPU and DMA could work together\r\n");
 		wait(1);
 	  m2p_finishFlag = 0;
