@@ -18,7 +18,7 @@
 #include "dma_api.h"
 #include "platform.h"
 #include "FunctionPointer.h"
-
+#include "sleep_api.h"
 /** A generic DMA for transfer data without hanging the CPU.
  * It can be used for m2m, m2p, p2m, m2m transfer
  * It will choose the DMA with the priority you have set.
@@ -49,8 +49,8 @@ class DMA
 public:
     /** @brief  Create the DMA Channel according to the prority or choose whichever free if no prority given.
     *                     Initialize the number of channels in the device
-    *  @param   priority: The DMA prority.
-    *    @note    If prority has been given but that channel is not avaiable, it will wait until the channel avaiable.
+    *   @param   priority: The DMA prority.
+    *   @note    If prority has been given but that channel is not avaiable, it will wait until the channel avaiable.
     */
     DMA(int priority = -1);
 
@@ -100,19 +100,25 @@ public:
      */
     void start(unsigned int len);
 		
-		/** @brief Get the address storing next linked list item   
-		
-		
+		/** @brief Get the address storing next linked list item 
+		 *  @param  src. Next transfer source address
+		 *  @param  dst. Next transfer destination address
+		 *  @param  size. Next transfer size		 
+		 *  @retval None
 		*/
-	//	void next(LLI* list);		
+		//	void next(LLI* list);		
 		void next(const uint32_t src, const uint32_t dst, uint32_t size);
 
-    /** @brief  Wait for DMA transaction finishs
-		 *  @retval  None
+    /** @brief  Wait for DMA transaction finishes or err interrupt happens
+		 *  @retval None
      */
     void wait();
 		
-
+		
+		/** @brief  Check whether DMA transaction has finished or generated errors
+		 *  @retval 0 if not finished or 1 if finished 
+     */
+		bool finished();
 
     /** @brief  Attach a function to DMA IRQ handler. The attached function will be called when the transfer has completed successfully.
      *  @param  *fptr. The function pointer.

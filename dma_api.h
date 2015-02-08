@@ -107,8 +107,6 @@ bool DMA_channel_active(int channel);
 
 
 
-
-
 /**
   * @brief  Reset the DMA channel to default reset value
   * @param  channel. The chosen channel number

@@ -35,9 +35,9 @@ func_ptr dma_irq_error[8];
 
 
 // Optimisation 1. Use burst mode
-#define BURST_ENABLED 0
+#define BURST_ENABLED 1
 // Optimisation 2. Pack bytes/half  to word
-#define  WORD_TRANSFER 0
+#define  WORD_TRANSFER 1
 // define whether transfer large size data supported
 #define LARGE_DATA_TRANSFER 1
 
@@ -87,8 +87,8 @@ typedef struct DMA_InitTypeDef{
 		bool DMA_SrcInc;  // Specifies whether the source is incremented or not 
     bool DMA_DestInc; // Specifies whether the destination is incremented or not 
     bool DMA_TermInt; // Specifies whether the terminal count interrupt enabled or not 
-    int DMA_TriggerSource; // Specifies the source trigger 
-    int DMA_TriggerDestination; // Specifies the destination trigger 
+    uint32_t DMA_TriggerSource; // Specifies the source trigger 
+    uint32_t DMA_TriggerDestination; // Specifies the destination trigger 
     TransferType  DMA_TransferType;
 }DMA_InitTypeDef ;
 
@@ -99,7 +99,7 @@ typedef struct DMA_InitTypeDef{
   * @param  src: the physical address
   * @retval 0 or 1
   */
-__inline static bool is_memory(uint32_t addr);
+inline static bool is_memory(uint32_t addr);
 
 /**
  * @brief  Static function. Automatice cacluate the transfer type according to the source and destination address
@@ -115,7 +115,7 @@ static TransferType get_transfer_type(uint32_t src_addr, uint32_t dst_addr );
   * @retval Chosen channel base address
   */
 	
-__inline static LPC_GPDMACH_TypeDef* return_channel(int channel)
+inline static LPC_GPDMACH_TypeDef* return_channel(int channel)
 {
     return (LPC_GPDMACH_TypeDef*)(LPC_GPDMACH0_BASE + 0x20*channel);
 }
@@ -135,7 +135,7 @@ void DMA_destination(DMA_InitTypeDef* DMA_InitStruct, uint32_t dst, unsigned int
 }
 
 
-void DMA_source (DMA_InitTypeDef* DMA_InitStruct, uint32_t src, unsigned int width, bool inc)
+void DMA_source(DMA_InitTypeDef* DMA_InitStruct, uint32_t src, unsigned int width, bool inc)
 {
     DMA_InitStruct->DMA_SrcAddr = src;
     DMA_InitStruct->DMA_SrcBurst = 0x00; // 1 byte
@@ -154,7 +154,7 @@ void DMA_trigger_destination(DMA_InitTypeDef* DMA_InitStruct, TriggerType trig)
 {
     DMA_InitStruct->DMA_TriggerDestination = trigger_value[trig];
 }
-
+// Currently, not support more than 4K transfer in LLI
 void DMA_next(DMA_InitTypeDef* DMA_InitStruct, const uint32_t src, const uint32_t dst, uint32_t size)
 {
 		//static int count = 0; 
@@ -164,9 +164,7 @@ void DMA_next(DMA_InitTypeDef* DMA_InitStruct, const uint32_t src, const uint32_
 	  DMA_InitStruct->LLI_list[DMA_InitStruct->LLI_count]->LLI_next = 0; // 0 not NULL as the programmer manual says LLI_next should be 0 if it is the last of the lists
 		DMA_InitStruct->LLI_list[DMA_InitStruct->LLI_count]->LLI_control = size & 0xFFF; 
 		DMA_InitStruct->LLI_count++;
-		printf ("the count number is %d \n", DMA_InitStruct->LLI_count);
 //  TBD: need to add assert to check the input size;
-//	list->LLI_control = size;
 }
 
 
@@ -176,7 +174,6 @@ void DMA_next(DMA_InitTypeDef* DMA_InitStruct, LLI* list)
   DMA_InitStruct->DMA_LLI = (uint32_t)list; 
 }
 */
-
 
 
 void DMA_init(int channel, DMA_InitTypeDef* DMA_InitStruct)
@@ -194,7 +191,6 @@ void DMA_init(int channel, DMA_InitTypeDef* DMA_InitStruct)
 
     /*--------------------------- DMAy channelx request select register ----------------*/
     // Choose UART or Timer DMA request for DMA inputs 8 through 15
-
     if ((DMA_InitStruct->DMA_TriggerSource & 0x10) || (DMA_InitStruct->DMA_TriggerDestination & 0x10))
         LPC_SC->DMAREQSEL |= 1 << ((DMA_InitStruct->DMA_TriggerSource || DMA_InitStruct->DMA_TriggerSource) - 24); // I don't know why. The user manual says DMAREQSET is GPDMA register, but in mbed, it is LPC_SC register
     else
@@ -207,15 +203,16 @@ void DMA_init(int channel, DMA_InitTypeDef* DMA_InitStruct)
     // Write to DMA channel destination address
     GPDMA_channel->DMACCDestAddr = DMA_InitStruct->DMA_DstAddr;
 
-		#if BURST_ENABLED
+		#ifdef BURST_ENABLED
 		if (DMA_InitStruct->DMA_TransferType == M2M)
 		{
-		    DMA_InitStruct->DMA_SrcBurst = 7; // always set burst size as 256, as it seems always work no matter the source size.
-        DMA_InitStruct->DMA_DestBurst = 7; // always set destination size as 256, as it seems always work no matter the source size.
+		    /*always set burst size as 256 as the performance is same no matter what the burst size is. Need to double confirm, it seems the 
+					interconnect would wrap the burst size as 4 no matter what the DMA AHB has set. This is to avoid DMA AHB bus take over too many bus bandwidth*/
+				DMA_InitStruct->DMA_SrcBurst = 7; // 
+        DMA_InitStruct->DMA_DestBurst = 7; 
 		}
 		#endif
-		
- 
+
     /*--------------------------- DMAy channelx control register ----------------*/
     // Set TransferSize
     // Set source burst size
@@ -266,61 +263,164 @@ void DMA_start(int channel, DMA_InitTypeDef* DMA_InitStruct, unsigned int length
 
 		// Set the transfer size
 	  // Put it here rather than in DMA_Init. So that one could send new transfer data without reinit other registers
+	 /*
+    unsigned int length_unalligned = (length & 0x3) >> DMA_InitStruct->DMA_SrcWidth; // If the size*sizeof(width) is not word aligned, find out the unalligned part
+		unsigned int length_alligned = length - length_unalligned;
+		unsigned int length_low = 0;
 	
+		if (length_alligned < 0x1000)
+		    length_low = length_alligned & 0xfff;
+		else
+			  length_low = 0xfff - length_unalligned;
+		
+			  
+		unsigned int length_high = length_alligned - length_low;
+		DMA_InitStruct->DMA_TransferSize = length_low; // The DMA control register length only have 12 bits 
+	  
+		unsigned int new_source_addr = DMA_InitStruct->DMA_SrcAddr + DMA_InitStruct->DMA_TransferSize*(1 << DMA_InitStruct->DMA_SrcWidth)*DMA_InitStruct->DMA_SrcInc;
+		unsigned int new_destination_addr = DMA_InitStruct->DMA_DstAddr + DMA_InitStruct->DMA_TransferSize*(1 << DMA_InitStruct->DMA_DestWidth)*DMA_InitStruct->DMA_DestInc;
+			
+	  unsigned int count = length_high/(0xfff - length_unalligned);
 
+		if(length_unalligned > 0)
+		{
+				LLI* newlist = malloc(sizeof(LLI));
+				newlist->LLI_control = 0;
+			  newlist->LLI_next = GPDMA_channel->DMACCLLI;
+				newlist->LLI_dst = DMA_InitStruct->DMA_DstAddr + length_alligned * DMA_InitStruct->DMA_DestWidth * DMA_InitStruct->DMA_DestInc;
+				newlist->LLI_src = DMA_InitStruct->DMA_SrcAddr + length_alligned * DMA_InitStruct->DMA_SrcWidth * DMA_InitStruct->DMA_SrcInc;
+			  GPDMA_channel->DMACCLLI = (uint32_t)newlist;
+				newlist->LLI_control = length_unalligned | (GPDMA_channel->DMACCControl & 0xfffff000);  
+		}
 		
-		DMA_InitStruct->DMA_TransferSize = (uint32_t)length & 0xFFF; // the DMA control register length only have 12 bits 
+		unsigned int length_left = length_alligned - length_low - count*(0xfff - length_unalligned);
 		
+	  while(count > 0)
+		{
+		    LLI* newlist1 = malloc(sizeof(LLI));
+				newlist1->LLI_control = 0;
+		    newlist1->LLI_next = GPDMA_channel->DMACCLLI;
+			  GPDMA_channel->DMACCLLI = (uint32_t)newlist1;
+			  if(DMA_InitStruct->DMA_SrcWidth < 0x2)
+				    newlist1->LLI_control = ((0xfff - length_unalligned) << DMA_InitStruct->DMA_SrcWidth >> 2) | 
+																		2 << DMA_CCxControl_SWidth_Pos |
+																		2 << DMA_CCxControl_DWidth_Pos |
+																	  (DMA_InitStruct->DMA_SrcBurst << DMA_CCxControl_SBSize_Pos) |  
+                                    (DMA_InitStruct->DMA_DestBurst << DMA_CCxControl_DBSize_Pos) |
+                                    (DMA_InitStruct->DMA_SrcInc << DMA_CCxControl_SI_Pos)    |
+                                    (DMA_InitStruct->DMA_DestInc << DMA_CCxControl_DI_Pos)   |
+                                    (DMA_InitStruct->DMA_TermInt << DMA_CCxControl_I_Pos);
+				else
+				    newlist1->LLI_control = (0xfff - length_unalligned) | (GPDMA_channel->DMACCControl & 0xfffff000);
+				count--;
+		}
+	  
+		
+    
+    if(length_left > 0)
+		{
+		    LLI* newlist2 = malloc(sizeof(LLI));
+				newlist2->LLI_control = 0;
+		    newlist2->LLI_next = GPDMA_channel->DMACCLLI;
+			  GPDMA_channel->DMACCLLI = (uint32_t)newlist2;
+			  if(DMA_InitStruct->DMA_SrcWidth < 0x2)
+				    newlist2->LLI_control = (length_left << DMA_InitStruct->DMA_SrcWidth >> 2) | 
+																		2 << DMA_CCxControl_SWidth_Pos |
+																		2 << DMA_CCxControl_DWidth_Pos |
+																	  (DMA_InitStruct->DMA_SrcBurst << DMA_CCxControl_SBSize_Pos) |  
+                                    (DMA_InitStruct->DMA_DestBurst << DMA_CCxControl_DBSize_Pos) |
+                                    (DMA_InitStruct->DMA_SrcInc << DMA_CCxControl_SI_Pos)    |
+                                    (DMA_InitStruct->DMA_DestInc << DMA_CCxControl_DI_Pos)   |
+                                    (DMA_InitStruct->DMA_TermInt << DMA_CCxControl_I_Pos);
+				else
+				    newlist2->LLI_control = length_left | GPDMA_channel->DMACCControl;
+		}
+			
+	*/
+	  int length_low = length & 0xfff;
+	  DMA_InitStruct->DMA_TransferSize = length_low;		
+
 		#ifdef LARGE_DATA_TRANSFER
-		int new_source_addr = DMA_InitStruct->DMA_SrcAddr + DMA_InitStruct->DMA_TransferSize*(1<<DMA_InitStruct->DMA_SrcWidth)*DMA_InitStruct->DMA_SrcInc;
-		int new_destination_addr = DMA_InitStruct->DMA_DstAddr + DMA_InitStruct->DMA_TransferSize*(1<<DMA_InitStruct->DMA_DestWidth)*DMA_InitStruct->DMA_DestInc;
-	  int new_length = (uint32_t)length & 0xFFFFF000;
-	  while (new_length >= 4096)
+	  /*transfer the data smaller than 4096 firstly then the others*/
+		unsigned int new_source_addr = DMA_InitStruct->DMA_SrcAddr + DMA_InitStruct->DMA_TransferSize*(1 << DMA_InitStruct->DMA_SrcWidth)*DMA_InitStruct->DMA_SrcInc;
+		unsigned int new_destination_addr = DMA_InitStruct->DMA_DstAddr + DMA_InitStruct->DMA_TransferSize*(1 << DMA_InitStruct->DMA_DestWidth)*DMA_InitStruct->DMA_DestInc;
+	
+		int length_high = length - length_low;
+	  while(length_high > 0x0)
 		{
 				int count = 0;
 				LLI* newlist = malloc(sizeof(LLI));
-			  newlist->LLI_src = new_source_addr + count*4096*DMA_InitStruct->DMA_SrcInc; // We won't increase source address if it is not incremented 
-				newlist->LLI_dst = new_destination_addr + count*4096*DMA_InitStruct->DMA_DestInc; 
-			  newlist->LLI_control = 0xFFF | GPDMA_channel->DMACCControl;
+			  newlist->LLI_control = 0;
+			  newlist->LLI_src = new_source_addr + count*4095*DMA_InitStruct->DMA_SrcInc*(1 << DMA_InitStruct->DMA_SrcWidth); // We won't increase source address if it is not incremented 
+				newlist->LLI_dst = new_destination_addr + count*4095*DMA_InitStruct->DMA_DestInc*(1 << DMA_InitStruct->DMA_DestWidth); 
+
+				#ifdef  ww//WORD_TRANSFER	
+				if(DMA_InitStruct->DMA_SrcWidth < 0x2 &&
+					 (DMA_InitStruct->DMA_SrcInc == 1) &&   // Only use word aligned when the source is incretmental 
+					 (DMA_InitStruct->DMA_DestInc == 1)  // Only use word aligned when the address is incretmental
+					)
+					  newlist->LLI_control = (length_high << DMA_InitStruct->DMA_SrcWidth >> 2) |
+																		2 << DMA_CCxControl_SWidth_Pos |
+																		2 << DMA_CCxControl_DWidth_Pos |
+																	  (DMA_InitStruct->DMA_SrcBurst << DMA_CCxControl_SBSize_Pos) |  
+                                    (DMA_InitStruct->DMA_DestBurst << DMA_CCxControl_DBSize_Pos) |
+                                    (DMA_InitStruct->DMA_SrcInc << DMA_CCxControl_SI_Pos)    |
+                                    (DMA_InitStruct->DMA_DestInc << DMA_CCxControl_DI_Pos)   |
+                                    (DMA_InitStruct->DMA_TermInt << DMA_CCxControl_I_Pos);
+				
+				else
+					  newlist->LLI_control = 0xfff | GPDMA_channel->DMACCControl;
+				#else
+			  newlist->LLI_control = 0xfff | (DMA_InitStruct->DMA_SrcBurst << DMA_CCxControl_SBSize_Pos)  |
+                                   (DMA_InitStruct->DMA_DestBurst << DMA_CCxControl_DBSize_Pos) |
+                                   (DMA_InitStruct->DMA_SrcWidth << DMA_CCxControl_SWidth_Pos)  |
+                                   (DMA_InitStruct->DMA_DestWidth << DMA_CCxControl_DWidth_Pos) |
+                                   (DMA_InitStruct->DMA_SrcInc << DMA_CCxControl_SI_Pos)    |
+                                   (DMA_InitStruct->DMA_DestInc << DMA_CCxControl_DI_Pos)   |
+                                   (DMA_InitStruct->DMA_TermInt << DMA_CCxControl_I_Pos );
+				#endif
 			  newlist->LLI_next = GPDMA_channel->DMACCLLI;
 			  GPDMA_channel->DMACCLLI = (uint32_t)newlist;
-				new_length = new_length - 4096;
+				length_high = length_high - 0xfff;
 			  count++;
 		}
 		#endif 
+		
 
-	
-	  #if WORD_TRANSFER 
+
+	  #ifdef WORD_TRANSFER 
+		/* The word transfer would bring performance regression when transfer small amount of data. The suggestion is if one only want to transfer 
+		   a small amount of data, then use memcpy than DMA. The DMA setup itself takes a few bit time. It is not worthy to transfer small data using dma*/
     int dst = (int)DMA_InitStruct->DMA_DstAddr;
     int src = (int)DMA_InitStruct->DMA_SrcAddr;  
 	  int old_SrcWidth = DMA_InitStruct->DMA_SrcWidth;
 		int old_DstWidth = DMA_InitStruct->DMA_DestWidth;
-	  int new_length = 0;
 	  int new_width = 2; // New width will be word
     if ((dst % sizeof(long) == 0) && (src % sizeof(long) == 0) && // Only use word aligned when starting addresss is at 4 bytes boundary
-			  (length >=4) && // Only use word aligned when length is no less than 4
-		    (DMA_InitStruct->DMA_SrcInc==1) &&   // Only use word aligned when the source is incretmental 
-				(DMA_InitStruct->DMA_DestInc == 1)) // Only use word aligned when the address is incretmental 																																					
+			  (length_low >=4) && // Only use word aligned when length is no less than 4
+		    (DMA_InitStruct->DMA_SrcInc == 1) &&   // Only use word aligned when the source is incretmental 
+				(DMA_InitStruct->DMA_DestInc == 1) &&  // Only use word aligned when the address is incretmental
+				(DMA_InitStruct->DMA_SrcWidth < 0x2))  // Only use word aligned when the source width is less than 4 bytes																																					
 		{
-		    new_length = (length << old_SrcWidth) >> 2; // Get the size of the word-aligned part
+		    int length_word = (length_low << old_SrcWidth) >> 2; // Get the size of the word-aligned part
 			 																					
 			
-	    	if (length % sizeof(long) == 0){ // If the original transfer size is word aligned
-						DMA_InitStruct->DMA_TransferSize = new_length;
+	    	if (length_low % sizeof(long) == 0){ // If the original transfer size is word aligned
+						DMA_InitStruct->DMA_TransferSize = length_word;
 					  // Set destinatin width is word only when the destination is automatic incremental
-					  DMA_InitStruct->DMA_DestWidth = ( DMA_InitStruct->DMA_DestInc == 0x1) ? new_width : old_DstWidth;
+					  DMA_InitStruct->DMA_DestWidth = (DMA_InitStruct->DMA_DestInc == 0x1) ? new_width : old_DstWidth;
 						DMA_InitStruct->DMA_SrcWidth = new_width;
 				
-					  GPDMA_channel->DMACCControl |= (DMA_InitStruct->DMA_SrcWidth<<DMA_CCxControl_SWidth_Pos) |
-																					 (DMA_InitStruct->DMA_DestWidth<<DMA_CCxControl_DWidth_Pos);
+					  GPDMA_channel->DMACCControl |= (DMA_InitStruct->DMA_SrcWidth << DMA_CCxControl_SWidth_Pos) |
+																					 (DMA_InitStruct->DMA_DestWidth << DMA_CCxControl_DWidth_Pos);
 			  }
 				else
 				{
 					  /*Need to transfer the word aligned part firstly then non-word aligned. Starting address has to be at transfer width boundary*/
 					
-					  DMA_InitStruct->DMA_TransferSize = new_length;
+					  DMA_InitStruct->DMA_TransferSize = length_word;
 					  DMA_InitStruct->DMA_SrcWidth = new_width;
-					  // set destinatin width is word only when the destination is automatic incremental
+					  // Set destinatin width is word only when the destination is automatic incremental
 		        DMA_InitStruct->DMA_DestWidth = (DMA_InitStruct->DMA_DestInc == 0x1) ? new_width : old_DstWidth;	      
 					  			
 					  GPDMA_channel->DMACCControl |= (DMA_InitStruct->DMA_SrcWidth << DMA_CCxControl_SWidth_Pos) |
@@ -328,20 +428,20 @@ void DMA_start(int channel, DMA_InitTypeDef* DMA_InitStruct, unsigned int length
 				  	GPDMA_channel->DMACCControl |= DMA_InitStruct->DMA_TransferSize << DMA_CCxControl_TransferSize_Pos;
 					
 					
-	    		  // mask ITC and IE, so that interrupts won't be generated when transfer the first part
-	 				  GPDMA_channel->DMACCConfig &= ~(1ul <<DMA_CCxConfig_ITC_Pos);
-					  // mask IE
-					  GPDMA_channel->DMACCConfig &= ~(1ul<< DMA_CCxConfig_IE_Pos);	
+	    		  // Mask ITC and IE, so that interrupts won't be generated when transfer the first part
+	 				  GPDMA_channel->DMACCConfig &= ~(1ul << DMA_CCxConfig_ITC_Pos);
+					  // Mask IE
+					  GPDMA_channel->DMACCConfig &= ~(1ul << DMA_CCxConfig_IE_Pos);	
 
 					  // Enable the selected DMAy Channelx
 					  LPC_GPDMA->DMACConfig = 0x01;
-					  GPDMA_channel->DMACCConfig |= 1ul<<DMA_CCxConfig_E_Pos;
+					  GPDMA_channel->DMACCConfig |= 1ul << DMA_CCxConfig_E_Pos;
 		
-					  while (DMA_ChannelActive(channel)); // wait for the first part transfer finish
+					  while (DMA_channel_active(channel)); // wait for the first part transfer finish
 		
 				   	// DMACCSrcAddr currently hold the end address of first part.Add the data width 
 						// to point to the starting source address of the second part. 
-				  	GPDMA_channel->DMACCSrcAddr = GPDMA_channel->DMACCSrcAddr +  (1 << DMA_InitStruct->DMA_SrcWidth);
+				  	GPDMA_channel->DMACCSrcAddr = GPDMA_channel->DMACCSrcAddr + (1 << DMA_InitStruct->DMA_SrcWidth);
 						// DMACCDestAddr currently hold the end address of first part.Add the data width 
 						// to point to the starting destination address of the second part. 
 				  	if (DMA_InitStruct->DMA_DestInc == 0x1)
@@ -355,23 +455,26 @@ void DMA_start(int channel, DMA_InitTypeDef* DMA_InitStruct, unsigned int length
 		        DMA_InitStruct->DMA_DestWidth = old_DstWidth;	      
 					  // Note: no need to set the new destination or source address as it has been updated automatically			
 						
-						//Clear to the width to 0x000 firstly 
+						//Clear the width to 0x000 firstly 
 					  GPDMA_channel->DMACCControl &= ~(0x111 << DMA_CCxControl_SWidth_Pos) &
 																					~(0x111 << DMA_CCxControl_DWidth_Pos);
 																				
 						GPDMA_channel->DMACCControl |= (DMA_InitStruct->DMA_SrcWidth << DMA_CCxControl_SWidth_Pos) |
 																					 (DMA_InitStruct->DMA_DestWidth << DMA_CCxControl_DWidth_Pos);
-				    DMA_InitStruct->DMA_TransferSize = (uint32_t)(length - new_length*4); // transfer the remaining part
+				    DMA_InitStruct->DMA_TransferSize = (uint32_t)(length_low - length_word*4); // transfer the remaining part
 				}
 		}
-		#endif    
+		#endif 
+
+		
+
 		
 		// Enable Interrupt
 	  // Unmask ITC
-    GPDMA_channel->DMACCConfig |= 1ul <<DMA_CCxConfig_ITC_Pos;
-    GPDMA_channel->DMACCControl |= 1ul <<DMA_CCxControl_I_Pos;
+    GPDMA_channel->DMACCConfig |= 1ul << DMA_CCxConfig_ITC_Pos;
+    GPDMA_channel->DMACCControl |= 1ul << DMA_CCxControl_I_Pos;
     // Unmask IE
-    GPDMA_channel->DMACCConfig |= 1ul<< DMA_CCxConfig_IE_Pos;	
+    GPDMA_channel->DMACCConfig |= 1ul << DMA_CCxConfig_IE_Pos;	
    
 	  
 		GPDMA_channel->DMACCControl |= DMA_InitStruct->DMA_TransferSize << DMA_CCxControl_TransferSize_Pos;
@@ -379,7 +482,7 @@ void DMA_start(int channel, DMA_InitTypeDef* DMA_InitStruct, unsigned int length
 		DMA_InitStruct->LLI_count = 0; // Clear the LLI lists count so that we could reuse this channel next time
 	  // Enable DMA 
     LPC_GPDMA->DMACConfig = 0x01;
-    GPDMA_channel->DMACCConfig |= 1ul<<DMA_CCxConfig_E_Pos;
+    GPDMA_channel->DMACCConfig |= 1ul << DMA_CCxConfig_E_Pos;
 }
 
 
@@ -411,7 +514,7 @@ void DMA_reset(int channel)
 
 DMA_InitTypeDef* DMA_struct_create(void)
 {
-	  DMA_InitTypeDef* DMA_InitStruct = (DMA_InitTypeDef* ) malloc(sizeof(DMA_InitTypeDef));
+	  DMA_InitTypeDef* DMA_InitStruct = (DMA_InitTypeDef*) malloc(sizeof(DMA_InitTypeDef));
     /*-------------- Reset DMA init structure parameters values ------------------*/
     DMA_InitStruct->DMA_DstAddr = 0;
     DMA_InitStruct->DMA_SrcAddr = 0;
@@ -424,7 +527,7 @@ DMA_InitTypeDef* DMA_struct_create(void)
 	  DMA_InitStruct->LLI_count = 0 ; 
     DMA_InitStruct->DMA_SrcInc = 0;
     DMA_InitStruct->DMA_DestInc = 0;
-    DMA_InitStruct->DMA_TermInt = 0;
+    DMA_InitStruct->DMA_TermInt = 1; // always enable terminal count interrupt in default
     DMA_InitStruct->DMA_TriggerSource = trigger_value[ALWAYS];
     DMA_InitStruct->DMA_TriggerDestination = trigger_value[ALWAYS];
     DMA_InitStruct->DMA_TransferType = M2M;
@@ -433,10 +536,10 @@ DMA_InitTypeDef* DMA_struct_create(void)
 
 void DMA_struct_delete(DMA_InitTypeDef* ptr)
 {
-	free (ptr);
+    free(ptr);
 }
 
-__inline static bool is_memory (uint32_t addr)
+inline static bool is_memory(uint32_t addr)
 {
     if ((addr >> 28) == 0 || (addr >> 28)== 1)
         return 1;
@@ -445,7 +548,7 @@ __inline static bool is_memory (uint32_t addr)
 }
 
 
-void  DMA_IRQ_handler(void)
+void DMA_IRQ_handler(void)
 {
     //only call the attached function when certain interrupt happened on the right channel
 		unsigned i ; 
@@ -458,25 +561,25 @@ void  DMA_IRQ_handler(void)
     if (FinishStatus !=0) //only checking when there is interrupt happened
 				for (i =0; i < 8; i++) // roundrobin checking how many channels get interrupts 
 				{
-				    if (FinishStatus & 1<<i)
-						dma_irq_finish[i]();
+				    if (FinishStatus & 1 << i)
+						    dma_irq_finish[i]();
 				}
-   if (ErrStatus !=0)			
+    if (ErrStatus !=0)			
 	     for (i =0; i < 8; i++)	
 			 {
-						if (ErrStatus & 1<<i)
-						dma_irq_error[i]();
+						if (ErrStatus & 1 << i)
+						    dma_irq_error[i]();
 			 }		 
   
     LPC_GPDMA->DMACIntTCClear |= FinishStatus;
-    LPC_GPDMA->DMACIntErrClr |=ErrStatus;
+    LPC_GPDMA->DMACIntErrClr |= ErrStatus;
 }
 
 
 void DMA_IRQ_attach(int channel, int status, func_ptr ptr)
 {
-    assert (channel <= _channel_num && channel>=0);
-    assert (status == ERR || status == FINISH);
+    assert(channel <= _channel_num && channel >= 0);
+    assert(status == ERR || status == FINISH);
 
     if (status == ERR)
         dma_irq_error[channel] = ptr;
@@ -491,7 +594,6 @@ void DMA_IRQ_detach(int channel)
     dma_irq_error[channel] = 0;
     dma_irq_finish[channel] = 0;
 }
-
 
 
 

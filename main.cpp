@@ -26,8 +26,9 @@ Done 1. make init struct generic -- Done
 
 
 #define test_attach 0
-#define test_m2m 0
-#define test_m2p 1
+#define test_m2m 1
+#define test_m2m_int 0
+#define test_m2p 0
 #define test_p2m 0
 #define test_p2p 0
 #define test_all 0
@@ -38,9 +39,9 @@ Done 1. make init struct generic -- Done
 LocalFileSystem local("local");
 
 DigitalOut myled1(LED1);
-DigitalOut myled2(LED2) ;
-DigitalOut myled3(LED3) ;
-DigitalOut myled4(LED4) ;
+DigitalOut myled2(LED2);
+DigitalOut myled3(LED3);
+DigitalOut myled4(LED4);
 
 // Use Timer to measure the execution time
 Timer t;
@@ -102,12 +103,27 @@ void irq_handler(void)
 
 int main(void)
 {
-char src[] =   "Hello world Copy the logical and implementation_tsmc28hpm directories in to the Skadi home directo \r\n" \
+char src[] =  		"Hello world Copy the logical and implementation_tsmc28hpm directories in to the Skadi home directo \r\n" \
+									"Thank you for the demonstration. I understand now. I have come to terms with the fact that I misunderstood how \r\n" \
+									"memory is laid out. I thought that each individual address was capable of storing an entire word, not just a byte \r\n" \
+									"(for instance address 0x12345678 could hold a value of 0xffffffff and then 0x12345679 could hold a completely  \r\n" \
+									"different value 0x00000000). Now I realize that 0x12345678 holds only one byte of a word and the next word\r\n"\
+									"The logic for your memcpy is correct and your interviewer didn't ask you to change it  or add a restriction.\r\n" 
+									"Hello world Copy the logical and implementation_tsmc28hpm directories in to the Skadi home directo \r\n" \
 									"Thank you for the demonstration. I understand now. I have come to terms with the fact that I misunderstood how \r\n" \
 									"memory is laid out. I thought that each individual address was capable of storing an entire word, not just a byte \r\n" \
 									"(for instance address 0x12345678 could hold a value of 0xffffffff and then 0x12345679 could hold a completely  \r\n" \
 									"different value 0x00000000). Now I realize that 0x12345678 holds only one byte of a word and the next word \r\n" \
 									"The logic for your memcpy is correct and your interviewer didn't ask you to change it or add a restriction.  \r\n" \
+									"different value 0x00000000). Now I realize that 0x12345678 holds only one byte of a word and the next word\r\n" \
+									"The logic for your memcpy is correct and your interviewer didn't ask you to change it or add a restriction.\r\n";
+	
+								/*"Hello world Copy the logical and implementation_tsmc28hpm directories in to the Skadi home directo \r\n" \
+									"Thank you for the demonstration. I understand now. I have come to terms with the fact that I misunderstood how \r\n" \
+									"memory is laid out. I thought that each individual address was capable of storing an entire word, not just a byte \r\n" \
+									"(for instance address 0x12345678 could hold a value of 0xffffffff and then 0x12345679 could hold a completely  \r\n" \
+									"different value 0x00000000). Now I realize that 0x12345678 holds only one byte of a word and the next word\r\n"\
+									"The logic for your memcpy is correct and your interviewer didn't ask you to change it  or add a restriction.\r\n" 
 									"Hello world Copy the logical and implementation_tsmc28hpm directories in to the Skadi home directo \r\n" \
 									"Thank you for the demonstration. I understand now. I have come to terms with the fact that I misunderstood how \r\n" \
 									"memory is laid out. I thought that each individual address was capable of storing an entire word, not just a byte \r\n" \
@@ -116,39 +132,52 @@ char src[] =   "Hello world Copy the logical and implementation_tsmc28hpm direct
 									"The logic for your memcpy is correct and your interviewer didn't ask you to change it or add a restriction.  \r\n" \
 									"different value 0x00000000). Now I realize that 0x12345678 holds only one byte of a word and the next word\r\n" \
 									"The logic for your memcpy is correct and your interviewer didn't ask you to change it or add a restriction.\r\n"\
+									"Hello world Copy the logical and implementation_tsmc28hpm directories in to the Skadi home directo \r\n"\
+									"Thank you for the demonstration. I understand now. I have come to terms with the fact that I misunderstood how \r\n" \
+									"memory is laid out. I thought that each individual address was capable of storing an entire word, not just a byte \r\n" \
+									"(for instance address 0x12345678 could hold a value of 0xffffffff and then 0x12345679 could hold a completely  \r\n" \
+									"different value 0x00000000). Now I realize that 0x12345678 holds only one byte of a word and the next word \r\n" \
+									"The logic for your memcpy is correct and your interviewer didn't ask you to change it or add a restriction.  \r\n" \
+								  "Thank you for the demonstration. I understand now. I have come to terms with the fact that I misunderstood how \r\n" \
 									"Hello world Copy the logical and implementation_tsmc28hpm directories in to the Skadi home directo \r\n" \
 									"Thank you for the demonstration. I understand now. I have come to terms with the fact that I misunderstood how \r\n" \
 									"memory is laid out. I thought that each individual address was capable of storing an entire word, not just a byte \r\n" \
 									"(for instance address 0x12345678 could hold a value of 0xffffffff and then 0x12345679 could hold a completely  \r\n" \
 									"different value 0x00000000). Now I realize that 0x12345678 holds only one byte of a word and the next word \r\n" \
 									"The logic for your memcpy is correct and your interviewer didn't ask you to change it or add a restriction.  \r\n" \
-									"Thank you for the demonstration. I understand now. I have come to terms with the fact that I misunderstood how \r\n" \
+								  "Thank you for the demonstration. I understand now. I have come to terms with the fact that I misunderstood how\r\n" \
+									"memory is laid out. I thought that each individual address was capable of storing an entire word, not just a byte \r\n" \
+									"(for instance address 0x12345678 could hold a value of 0xffffffff and then 0x12345679 could hold a completely \r\n" \
+									"different value 0x00000000). Now I realize that 0x12345678 holds only one byte of a word and the next word \r\n" \
+									"The logic for your memcpy is correct and your interviewer didn't ask you to change it or add a restriction. \r\n" \
 									"memory is laid out. I thought that each individual address was capable of storing an entire word, not just a byte \r\n" \
 									"(for instance address 0x12345678 could hold a value of 0xffffffff and then 0x12345679 could hold a completely  \r\n" \
 									"different value 0x00000000). Now I realize that 0x12345678 holds only one byte of a word and the next word \r\n" \
-									"The logic for your memcpy is correct and your interviewer didn't ask you to change it or add a restriction.  \r\n" \
-									"memory is laid out. I thought that each individual address was capable of storing an entire word, not just a byte \r\n" \
-									"(for instance address 0x12345678 could hold a value of 0xffffffff and then 0x12345679 could hold a completely  \r\n" \
-									"different value 0x00000000). Now I realize that 0x12345678 holds only one byte of a word and the next word \r\n" \
-									"The logic for your memcpy is correct and your interviewer didn't ask you to change it or add a restriction.  \r\n" \
+									"The logic for your memcpy is correct and your interviewer didn't ask you to change it or add a restriction. \r\n" \
 									"Thank you for the demonstration. I understand now. I have come to terms with the fact that I misunderstood how \r\n" \
 									"Thank you for the demonstration. I understand now. I have come to terms with the fact that I misunderstood how \r\n" \
 									"memory is laid out. I thought that each individual address was capable of storing an entire word, not just a byte \r\n" \
 									"algorithm. Memory operates on words rather than bytes. In a 32-bit system, a word is typically 4 bytes, it\r\n"\
-									"akes the same amount of time to read/write 1 byte as it does to read/write 1 word. The second loop is to\r\n"\
+									"akes the same amount of time to read/write 1 byte as it does to read/write 1 word. The second loop is to   \r\n"\
 									"Hello world Copy the logical and implementation_tsmc28hpm directories in to the Skadi home directory\r\n"\
-									"1.pick what kind of geek you want to be there are different kinds of geeks such as sci fi and fantasy geek \r\n"\
-									"#book geek manga geek and many more just be who you really are \r\n"\
+									"1.pick what kind of geek you want to be there are different kinds of geeks such as sci fi and fantasy geek\r\n"\
+									"#book geek manga geek and many more just be who you really are\r\n"\
 									"2. Read lots of books. Some good geeky books include The Lord Of The Rings, Harry Potter, The Hunger Games,\r\n"\
 									"I Robot and The Zombie Survival Guide. These can be found in your local library.\r\n"\
 									"3.Be smart. Try to get an A in every subject except for PE.\r\n"\
 									"4.Read geeky comics and graphic novels. You don't have to read superhero comics if you want to be geeky.\r\n"\
-									"You can read Science Fiction, Fantasy, Horror or Comedy. \r\n"\
+									"You can read Science Fiction, Fantasy, Horror or Comedy.\r\n"\
 									"5.Watch geeky movies such as Shaun of The Dead, Star Trek, Doctor who, Revenge Of the Nerds, and Star Wars.\r\n"\
-									"6.Know all things Star Trek. Captain Kirk's background, the fact that spock is a vulcan, and the vulcan salute are all things that a geek must know\r\n";
+									"6.Know all things Star Trek. Captain Kirk's background, the fact that spock is a vulcan, and the vulcan salute are all things that a geek must know\r\n"\
+									"7.Watch geeky series such as Doctor Who, Merlin and The Big Bang Theory.\r\n"\
+									"8.Be good with computers. Learn a programming language and read books about computers.\r\n"\
+									"9.Have geeky friends and a geeky hangout such as the book shop, the tabletop game shop, the comic shop and the computer shop.\r\n"\
+									"10.A geek knows everything\"thinkgeek.com\". Thinkgeek is a website which holds everything a geek could want. A geek has an account on thinkgeek and has thinkgeek points.\r\n"\
+									"11.A GEEK DOES NOT PLAY ROCK PAPER SCISSORS. A geek plays the famous game invented by Sheldon Cooper: rock-paper-scissors-lizard-Spock.\r\n"\
+									"12.Buy some shirts from thinkgeek.com and wear Adidas slides.\r\n";*/
+						
 									
-									
-									
+int src_int[56] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55};						
 
 
 	
@@ -163,10 +192,10 @@ char src[] =   "Hello world Copy the logical and implementation_tsmc28hpm direct
     memset (dst1, '\0', size);
 	
     mynumber1.num = 3; 	
-    DMA dma1 (-1) ; // choose whichever free channel
+    DMA dma1 (-1); // choose whichever free channel
     dma1.source (src2,1, 8); // set source as incremental. Not need to set the transfer width as MBED dma will do it for you.
     dma1.destination (dst1, 1, 8);
-    dma1.attach_TC(test_mynumber) ;
+    dma1.attach_TC(test_mynumber);
 	
 	  dma1.start(size);
     dma1.wait();
@@ -177,81 +206,109 @@ char src[] =   "Hello world Copy the logical and implementation_tsmc28hpm direct
 #if test_m2m
     /* test the DMA M2M, copy data from src to dest, and then print out the dest mem data */
 
-    pc.printf("start to test DMA M2M test now!\r\n");
-   // wait(1);				
+    pc.printf("start to test DMA M2M test now!\r\n");   
+	 // wait(1);				
     size_t size = sizeof (src);
-    char *dst1  = (char *) malloc(size);
-		char *dst2  = (char *) malloc(size);
-    memset (dst1, '\0', size);
-		memset (dst2, '\0', size);
+    char *dst1  = (char *) malloc(size+1);
+		char *dst2  = (char *) malloc(size+1);
+    memset(dst1, '\0', size);
+		memset(dst2, '\0', size);
 		t.start();
-  	memcpy (dst1,src,size);
+  	memcpy(dst1,src,size);
 	  t.stop();
 		printf("The source size is %d\r\n", size);
 		printf("The time CPU took was %f seconds\r\n", t.read());
 		t.reset();
 
 		
-    DMA dma1 (-1) ; // choose whichever free channel
-    dma1.source (src,1, 8); // set source as incremental. Not need to set the transfer width as MBED dma will do it for you.
-    dma1.destination (dst2, 1, 8);
+    DMA dma1(-1); // choose whichever free channel
+    dma1.source(src,1, 8); // set source as incremental. Not need to set the transfer width as MBED dma will do it for you.
+    dma1.destination(dst2, 1, 8);
 	
-    dma1.attach_TC(led_switchon_m2m) ;
-		dma1.attach_Err (IRQ_err);
+    dma1.attach_TC(led_switchon_m2m);
+	  dma1.attach_Err(IRQ_err);
 		t.start();
 	  dma1.start(size);
     dma1.wait();
 		t.stop();
+		
 	  pc.printf("The time DMA took was %f seconds\r\n", t.read());
-		wait(1);
+	  wait(5);
     pc.printf("dst text: %s \r\n", dst2);
 		t.reset();
-    if (strcmp (dst2, src) != 0)
+    if (strcmp(dst2, dst1) != 0)
+		{
         pc.printf("error! \r\n");
+				for (int i = 0; i<strlen(dst1); i++)
+				    if(dst1[i] != dst2[i])
+								printf ("In the %d charator, dst1 is %c and dst2 is %c \r\n", i+1, dst1[i], dst2[i]);
+		}
     else
         pc.printf("correct! \r\n");
-
-   
 #endif
 
+#if test_m2m_int
+    pc.printf("start to test DMA M2M test now!\r\n");
+    // wait(1);				
+    size_t size = sizeof(src_int)/4;
+    int *dst1  = (int *) malloc(sizeof(src_int)/4);
+		int *dst2  = (int *) malloc(sizeof(src_int)/4);
+    memset(dst1, '\0', size);
+		memset(dst2, '\0', size);
+		t.start();
+  	memcpy(dst1,src_int,size);
+	  t.stop();
+		printf("The source size is %d\r\n", size);
+		printf("The time CPU took was %f seconds\r\n", t.read());
+		t.reset();
+
+		
+    DMA dma1(1); // choose whichever free channel
+    dma1.source(src_int,1); // set source as incremental. Not need to set the transfer width as MBED dma will do it for you.
+    dma1.destination(dst2, 1);
+	
+ // dma1.attach_TC(led_switchon_m2m);
+//	dma1.attach_Err(IRQ_err);
+		t.start();
+	  dma1.start(size);
+    dma1.wait();
+		t.stop();
+		
+	  pc.printf("The time DMA took was %f seconds\r\n", t.read());
+		wait(5);
+		for (int i=0; i<sizeof(src_int)/4;i++)
+    pc.printf("dst text: %d \r\n", dst2[i]);
+		t.reset();
+    if (memcmp(dst2, src_int, sizeof(src_int)/4) != 0)
+        pc.printf("error! \r\n");
+    else
+        pc.printf("correct! \r\n");		
+#endif 		
+		
 #if test_LLI
 		
 	  pc.printf ("start to test LLI now\r\n");
 
   	wait(2);
 	
-		char src_dma[] = "This is to test the scatter-gather support \n";
-		char src_LLI[] = "this is from linked item \n";
-		char *dst_LLI  = new char[sizeof(src_LLI)];
-    char *dst= new char[sizeof(src)];
+		char src_dma[] = "This is to test the scatter-gather support \r\n";
+		char src_LLI[] = "this is from linked item \r\n";
 		LPC_UART0->FCR  |=  1<<3 ; //Enable UART DMA mode
 		LPC_UART0->LCR &= ~(1<<3); // No parity bit generated 
 		
     DMA dmaLLI(2);
-  //  dmaLLI.destination(&(LPC_UART0->THR),0, sizeof(char)*8);
-		dmaLLI.destination(dst,1, sizeof(char)*8);
-    dmaLLI.source(src,1, sizeof(char)*8);
-  //  dmaLLI.TriggerDestination(_UART0_TX);
+    dmaLLI.destination(&(LPC_UART0->THR),0, sizeof(char)*8);	
+    dmaLLI.source(src_dma,1, sizeof(char)*8);
+    dmaLLI.TriggerDestination(_UART0_TX);
     dmaLLI.attach_TC(led_switchon_m2p);//  m2p_finishFlag will be set when FINISH interrupt generated
-	//	dmaLLI.attach_Err (IRQ_err);
+	  dmaLLI.attach_Err(IRQ_err);
 
-
-	//	LLI* next1  = malloc(sizeof(LLI));
-	
-		LLI * next1 = new LLI;
-    next1->LLI_src = (uint32_t)src_LLI;		
-		next1->LLI_dst = (uint32_t)dst_LLI;
-		next1->LLI_next = 0;
-	//	next1->LLI_size = sizeof(src_LLI) | 0x1 << 31 | 0x1 << 26 | 0x1 << 27; //sizeof(src_LLI);
-	 // dmaLLI.next(next1);
-	  //dmaLLI.next((uint32_t)src_LLI, (uint32_t)dst_LLI, sizeof(src_LLI));
+  	 dmaLLI.next((uint32_t)src_LLI, (uint32_t)&(LPC_UART0->THR), sizeof(src_LLI));
 	 // dmaLLI.next((uint32_t)src_LLI, (uint32_t)dst_LLI, 7);
 	//	DMA dmaLLI2(3);
 	//	dmaLLI2.next((uint32_t)src_LLI, (uint32_t)dst_LLI, 7);
-		dmaLLI.start(sizeof(src));
+		dmaLLI.start(sizeof(src_dma));
 		dmaLLI.wait();
-	  pc.printf("dst text: %s \r\n", dst);
-		pc.printf("dst text: %s \r\n", dst_LLI);
 		while(1);
 #endif 	
 		
@@ -289,7 +346,6 @@ char src[] =   "Hello world Copy the logical and implementation_tsmc28hpm direct
 		printf("The time DMA took was %f seconds\r\n", t.read());
 		printf("The transfer size is %d \r\n", sizeof(src));
 		wait(2);
-		while(1);
 		
 		pc.printf ("Now demonstrate CPU and DMA could work together\r\n");
 		wait(1);
@@ -376,7 +432,6 @@ char src[] =   "Hello world Copy the logical and implementation_tsmc28hpm direct
 			  raw_data= (unsigned int )dst3[0] &0x7fffffff;
 			  pc.printf("The ADC data of raw data is: %d\r\n", raw_data);
 			  pc.printf("The ADC data of DMA is: %d\r\n", data);
-			
 	   	  wait (1);
 		}
 			

@@ -1,4 +1,3 @@
-
 #include "dma.h"
 
 namespace mbed {
@@ -59,17 +58,22 @@ void DMA::next(LLI* list)
 
 void DMA::next(const uint32_t src, const uint32_t dst, uint32_t size)
 {
-   DMA_next(dma_init_struct, src, dst, size);
+    DMA_next(dma_init_struct, src, dst, size);
 }
 
 void DMA::start (unsigned int len)
 {
   	DMA_init(chan,dma_init_struct);
-	  DMA_start (chan, dma_init_struct, len);
+	  DMA_start(chan, dma_init_struct, len);
 }
 
 void DMA::wait()
 {
     while (DMA_channel_active(chan));
+}
+
+bool DMA::finished()
+{
+    return !DMA_channel_active(chan);
 }
 }
